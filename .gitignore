@@ -1,0 +1,20 @@
+# Build
+build/
+.gradle/
+out/
+run/
+logs/
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+bin/
+
+# OS
+.DS_Store
+*.swp

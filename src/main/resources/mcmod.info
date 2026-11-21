@@ -1,0 +1,16 @@
+[
+  {
+    "modid": "${modid}",
+    "name": "${modname}",
+    "description": "A lightweight, Linux-first PvP client for Minecraft 1.8.9: HUD mods, zoom, freelook and performance tweaks.",
+    "version": "${version}",
+    "mcversion": "${mcversion}",
+    "url": "https://github.com/ogjulius/larp-client",
+    "updateUrl": "",
+    "authorList": ["ogjulius"],
+    "credits": "Build tooling based on nea89o/Forge1.8.9Template (Unlicense).",
+    "logoFile": "",
+    "screenshots": [],
+    "dependencies": []
+  }
+]
