@@ -43,7 +43,11 @@ from the main menu or from *Mod menu → Music*. It supports shuffle, autoplay, 
 Default keys: `Right Shift` menu · `C` zoom · `Left Alt` freelook. You can change all of them in
 *Options → Controls → LARP Client* or in the mod menu.
 
-## Install (Linux)
+## Install
+
+**Quick start:** see [INSTALL.md](INSTALL.md). Download the launcher jar from Releases, run `java -jar larp-launcher-0.1.0.jar`, add a username, and click Launch.
+
+### Linux from source
 
 You need Java 17+ for the launcher. The game's Java 8 is found or downloaded automatically.
 
