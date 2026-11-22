@@ -95,7 +95,7 @@ public final class LauncherFrame extends JFrame {
     void show(String page) {
         cards.show(pages, page);
         // Don't let the first button on a page grab a focus ring.
-        javax.swing.SwingUtilities.invokeLater(() -> getRootPane().requestFocusInWindow());
+        getRootPane().requestFocusInWindow();
         for (NavRail item : nav) {
             item.setActive(item.getLabel().equals(page));
         }
@@ -190,6 +190,7 @@ public final class LauncherFrame extends JFrame {
                 setPreferredSize(new Dimension(46, 36));
                 setMaximumSize(new Dimension(46, 36));
                 setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                Components.onClick(this, action);
                 addMouseListener(new MouseAdapter() {
                     @Override
                     public void mouseEntered(MouseEvent e) {
@@ -203,10 +204,6 @@ public final class LauncherFrame extends JFrame {
                         repaint();
                     }
 
-                    @Override
-                    public void mouseClicked(MouseEvent e) {
-                        action.run();
-                    }
                 });
             }
 

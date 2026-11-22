@@ -46,6 +46,9 @@ public final class LarpFont {
     private static final Map<String, LarpFont> CACHE = new HashMap<>();
     private static final int FIRST = 32;
     private static final int LAST = 255;
+    /** Common typographic characters beyond Latin-1. */
+    private static final String EXTRA = "\u2013\u2014\u2018\u2019\u201C\u201D\u2022\u2026\u2039\u203A\u2190\u2192\u2122\u20AC\u2212\u00D7";
+    private static final int GLYPHS = LAST + 1 + EXTRA.length();
     private static final int PAD = 2;
 
     private final Weight weight;
@@ -54,15 +57,28 @@ public final class LarpFont {
     private int builtScale = -1;
     private int textureId = -1;
     private int textureSize;
-    private final float[] advance = new float[LAST + 1];
-    private final int[] gx = new int[LAST + 1];
-    private final int[] gy = new int[LAST + 1];
-    private final int[] gw = new int[LAST + 1];
-    private final int[] gh = new int[LAST + 1];
-    private final int[] offsetX = new int[LAST + 1];
-    private final boolean[] present = new boolean[LAST + 1];
+    private final float[] advance = new float[GLYPHS];
+    private final int[] gx = new int[GLYPHS];
+    private final int[] gy = new int[GLYPHS];
+    private final int[] gw = new int[GLYPHS];
+    private final int[] gh = new int[GLYPHS];
+    private final int[] offsetX = new int[GLYPHS];
+    private final boolean[] present = new boolean[GLYPHS];
     private float ascent;
     private float lineHeight;
+
+    /** Glyph slot for a character, or -1 if the atlas doesn't cover it. */
+    private static int slot(char c) {
+        if (c >= FIRST && c <= LAST) {
+            return c;
+        }
+        int extra = EXTRA.indexOf(c);
+        return extra < 0 ? -1 : LAST + 1 + extra;
+    }
+
+    private static char charOf(int slot) {
+        return slot <= LAST ? (char) slot : EXTRA.charAt(slot - LAST - 1);
+    }
 
     private LarpFont(Weight weight, float size) {
         this.weight = weight;
@@ -117,12 +133,12 @@ public final class LarpFont {
             int x = 0;
             int y = 0;
             boolean fits = true;
-            for (int c = FIRST; c <= LAST; c++) {
-                present[c] = font.canDisplay((char) c);
+            for (int c = FIRST; c < GLYPHS; c++) {
+                present[c] = font.canDisplay(charOf(c));
                 if (!present[c]) {
                     continue;
                 }
-                GlyphVector gv = font.createGlyphVector(frc, String.valueOf((char) c));
+                GlyphVector gv = font.createGlyphVector(frc, String.valueOf(charOf(c)));
                 advance[c] = gv.getGlyphMetrics(0).getAdvanceX();
                 Rectangle2D bounds = gv.getVisualBounds();
                 int left = (int) Math.floor(Math.min(0, bounds.getMinX()));
@@ -155,9 +171,9 @@ public final class LarpFont {
         hints(g);
         g.setFont(font);
         g.setColor(Color.WHITE);
-        for (int c = FIRST; c <= LAST; c++) {
+        for (int c = FIRST; c < GLYPHS; c++) {
             if (present[c]) {
-                g.drawString(String.valueOf((char) c), gx[c] - offsetX[c], gy[c] + PAD + fm.getAscent());
+                g.drawString(String.valueOf(charOf(c)), gx[c] - offsetX[c], gy[c] + PAD + fm.getAscent());
             }
         }
         g.dispose();
@@ -193,9 +209,9 @@ public final class LarpFont {
         ensure();
         float w = 0;
         for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            w += (c <= LAST && present[c] ? advance[c] / builtScale
-                    : Minecraft.getMinecraft().fontRendererObj.getCharWidth(c)) + letterSpacing;
+            int c = slot(text.charAt(i));
+            w += (c >= 0 && present[c] ? advance[c] / builtScale
+                    : Minecraft.getMinecraft().fontRendererObj.getCharWidth(text.charAt(i))) + letterSpacing;
         }
         return text.isEmpty() ? 0 : w - letterSpacing;
     }
@@ -251,14 +267,15 @@ public final class LarpFont {
         StringBuilder fallback = null;
         float fallbackX = 0;
         for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            if (c > LAST || !present[c]) {
+            char ch = text.charAt(i);
+            int c = slot(ch);
+            if (c < 0 || !present[c]) {
                 if (fallback == null) {
                     fallback = new StringBuilder();
                     fallbackX = px;
                 }
-                fallback.append(c);
-                px += Minecraft.getMinecraft().fontRendererObj.getCharWidth(c) + letterSpacing;
+                fallback.append(ch);
+                px += Minecraft.getMinecraft().fontRendererObj.getCharWidth(ch) + letterSpacing;
                 continue;
             }
             float x0 = px + offsetX[c] / (float) scale;

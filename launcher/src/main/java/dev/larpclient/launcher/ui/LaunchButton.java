@@ -124,9 +124,10 @@ public final class LaunchButton extends JComponent {
         } else {
             g2.setFont(Fonts.semibold(18f));
             int tw = g2.getFontMetrics().stringWidth(label);
-            int iconSpace = busy ? 0 : 26;
+            boolean playIcon = !busy && "Launch".equals(label);
+            int iconSpace = playIcon ? 26 : 0;
             int tx = (w - tw - iconSpace) / 2 + iconSpace;
-            if (!busy) {
+            if (playIcon) {
                 Icons.draw(g2, Icons.Glyph.PLAY, tx - 28, h / 2f - 10, Color.WHITE);
             }
             g2.drawString(label, tx, h / 2 + 6);

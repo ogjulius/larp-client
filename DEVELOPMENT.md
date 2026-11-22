@@ -111,6 +111,8 @@ Mixin hook  ──► Module static query (cheap early-out when disabled)
 | `MixinEntityRenderer` | `orientCamera`, `hurtCameraEffect` | Freelook camera, No Hurt Cam |
 | `MixinEffectRenderer` | `addEffect` | Particle limiter |
 | `MixinRenderManager` | `shouldRender` | Distance-based entity culling |
+| `MixinGuiScreen` | `drawBackground` | Starry sky instead of dirt outside a world |
+| `MixinGuiSlot` | `drawContainerBackground`, `overlayBackground` | Translucent lists over the sky |
 
 Mixins in `dev.larpclient.mixin` are discovered automatically, so you don't need to list them in
 `mixins.larpclient.json`. Injectors default to `require = 1`, so a broken target fails loudly at
@@ -126,14 +128,30 @@ which PvP players expect.
 - `render/Shapes` draws rounded rects, outlines, circles, gradients, lines and media icons. Everything
   is built from plain `GL_TRIANGLES` with culling off, because polygon/fan modes proved unreliable
   in Minecraft's GL state.
-- `render/Panorama` draws the vanilla cubemap into a quarter-resolution framebuffer, upscaled with a
-  4-tap filter. `gui/menu/Backdrop` adds legibility scrims.
+- `render/StarrySky` is the procedural night sky behind every menu outside a world: a gradient, about 1,500
+  seeded stars with twinkle and colour temperature turning slowly around an off-screen pole, a Milky
+  Way band with glow, occasional shooting stars and two mountain ridges. `gui/menu/Backdrop` wraps it.
+  `MixinGuiScreen`/`MixinGuiSlot` put vanilla menus (world list, options, servers) on the same sky.
 - `gui/Widgets` provides the panel, toggle, slider, text input and close button.
 
 **Screenshot tour.** `./gradlew :mod:runGame -PlarpTour [-PlarpTourScale=2] [-PlarpTourWidth=1280
 -PlarpTourHeight=720] [-PlarpTourMouse=x,y]` renders every LARP screen offscreen at a fixed size
 into `mod/run/screenshots/larp-tour-N.png`, then quits. It doesn't depend on your window manager.
 Use it to review UI changes. The README images come from it.
+
+### Usability testing in a virtual display
+
+Robot-driven UI tests must not run on a live desktop: keyboard focus belongs to whatever window
+the user is in, so synthetic input can end up somewhere else. Use an isolated X server instead:
+
+```sh
+Xvfb :77 -screen 0 1280x720x24 +extension GLX &
+DISPLAY=:77 WAYLAND_DISPLAY= java -jar launcher/build/libs/larp-launcher-*.jar --launch --offline Dev
+DISPLAY=:77 import -window root shot.png     # screenshot (ImageMagick)
+```
+
+With no window manager the game window is exactly the requested size, and input goes to the window
+under the pointer.
 
 ### Music player
 

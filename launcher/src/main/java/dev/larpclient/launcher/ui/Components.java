@@ -58,6 +58,30 @@ public final class Components {
         }
     }
 
+    /**
+     * Run {@code action} when the left button is pressed and released over {@code c}. Unlike
+     * {@code mouseClicked}, this tolerates small pointer movement between press and release
+     * (touchpads, high-DPI mice), which otherwise silently drops clicks.
+     */
+    public static void onClick(java.awt.Component c, Runnable action) {
+        c.addMouseListener(new java.awt.event.MouseAdapter() {
+            private boolean armed;
+
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent e) {
+                armed = javax.swing.SwingUtilities.isLeftMouseButton(e);
+            }
+
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent e) {
+                if (armed && c.contains(e.getPoint())) {
+                    action.run();
+                }
+                armed = false;
+            }
+        });
+    }
+
     /** Page title + subtitle used at the top of every page. */
     public static JPanel pageHeader(String title, String subtitle) {
         JPanel header = new JPanel();

@@ -32,7 +32,7 @@ A lightweight, Linux-first **PvP client for Minecraft 1.8.9**. It comes in two p
 **In game**
 | Category | Modules |
 |---|---|
-| **Menus** | Custom animated main menu · mod menu (Right Shift) · HUD editor · music player |
+| **Menus** | Starry-sky main menu (vanilla menus too) · mod menu (Right Shift or pause menu → LARP Mods) · HUD editor · music player |
 | **HUD** | FPS · CPS · Keystrokes · Armor Status · Potion Effects · Coordinates · Direction · Ping · Clock · Memory · Combo Counter · Reach Display · Server Address · Now Playing · Toggle Sprint |
 | **Utility** | Zoom (smooth, scroll-adjustable) · Freelook · Fullbright · No Hurt Cam |
 | **Performance** | Background FPS Limit · Particle Limiter · Entity Culling |

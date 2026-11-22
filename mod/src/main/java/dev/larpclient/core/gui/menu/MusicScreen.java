@@ -52,8 +52,8 @@ public final class MusicScreen extends GuiScreen {
         String title = titleField == null ? "" : titleField.text;
         urlField = new Widgets.TextInput(px + 14, py + 40, pw - 28 - 66, 16, "https://example.com/track.mp3", 512);
         titleField = new Widgets.TextInput(px + 14, py + 60, pw - 28 - 66, 16, "Title (optional)", 64);
-        urlField.text = url;
-        titleField.text = title;
+        urlField.setText(url);
+        titleField.setText(title);
         urlField.focused = true;
         addButton = new MenuButton("Add", this::addTrack).bounds(px + pw - 14 - 58, py + 40, 58, 36).primary();
         widget.setPosition(px + 14, py + ph - MusicWidget.HEIGHT - 14);
@@ -64,10 +64,10 @@ public final class MusicScreen extends GuiScreen {
         if (player().add(url, titleField.text)) {
             message = "Added “" + Track.titleFromUrl(url) + "”";
             messageColor = 0xFF5FD39A;
-            urlField.text = "";
-            titleField.text = "";
+            urlField.setText("");
+            titleField.setText("");
         } else {
-            message = "That doesn't look like an http(s) link to an MP3/WAV file or MP3 stream";
+            message = "Use a direct http(s) link to an .mp3/.wav file or MP3 stream";
             messageColor = 0xFFFF7A7F;
         }
     }

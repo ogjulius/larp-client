@@ -145,6 +145,25 @@ public final class Shapes {
         end();
     }
 
+    /** Soft radial glow: {@code argb} at the centre fading to transparent at radius {@code r}. */
+    public static void glow(float cx, float cy, float rx, float ry, int argb) {
+        begin();
+        GlStateManager.tryBlendFuncSeparate(770, 1, 1, 0); // additive for light
+        WorldRenderer wr = triangles();
+        int edge = argb & 0x00FFFFFF;
+        int segments = 32;
+        for (int i = 0; i < segments; i++) {
+            double a0 = Math.PI * 2 * i / segments;
+            double a1 = Math.PI * 2 * (i + 1) / segments;
+            color(wr, cx, cy, argb);
+            color(wr, cx + Math.cos(a0) * rx, cy + Math.sin(a0) * ry, edge);
+            color(wr, cx + Math.cos(a1) * rx, cy + Math.sin(a1) * ry, edge);
+        }
+        Tessellator.getInstance().draw();
+        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+        end();
+    }
+
     public static void triangle(float x1, float y1, float x2, float y2, float x3, float y3, int argb) {
         begin();
         WorldRenderer wr = triangles();

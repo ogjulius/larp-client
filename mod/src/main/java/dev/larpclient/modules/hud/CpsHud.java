@@ -8,7 +8,7 @@ public final class CpsHud extends TextHudModule {
     private final BooleanSetting showRight = setting(new BooleanSetting("Show Right Click", "Also show right-click CPS", false));
 
     public CpsHud() {
-        super("CPS", "Shows your clicks per second", 0.0, 0.075);
+        super("CPS", "Shows your clicks per second", 0.0, 0.1);
     }
 
     @Override

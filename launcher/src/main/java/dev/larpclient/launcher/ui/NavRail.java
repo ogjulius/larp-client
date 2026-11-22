@@ -25,6 +25,7 @@ public final class NavRail extends JComponent {
         setMaximumSize(new Dimension(84, 60));
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         setToolTipText(label);
+        Components.onClick(this, () -> onSelect.accept(label));
         addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
@@ -36,11 +37,6 @@ public final class NavRail extends JComponent {
             public void mouseExited(MouseEvent e) {
                 hovered = false;
                 repaint();
-            }
-
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                onSelect.accept(label);
             }
         });
     }

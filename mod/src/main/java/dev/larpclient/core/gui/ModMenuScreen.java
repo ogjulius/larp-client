@@ -61,7 +61,7 @@ public final class ModMenuScreen extends GuiScreen {
         py = Math.round((height - ph) / 2f);
         String previous = search == null ? "" : search.text;
         search = new Widgets.TextInput(px + pw - 12 - 120, py + 11, 120, 15, "Search modules", 32);
-        search.text = previous;
+        search.setText(previous);
         editHud = new MenuButton("Edit HUD Layout", () -> mc.displayGuiScreen(new HudEditorScreen()))
                 .bounds(px + 10, py + ph - 30, SIDEBAR - 20, 20).primary();
         music = new MenuButton("Music", () -> mc.displayGuiScreen(new MusicScreen(this)))
@@ -278,7 +278,7 @@ public final class ModMenuScreen extends GuiScreen {
             if (button == 0 && RenderUtil.hovered(mouseX, mouseY, px + 8, y, SIDEBAR - 16, 18)) {
                 category = lastCategory = c;
                 selected = null;
-                search.text = "";
+                search.setText("");
                 scroll = targetScroll = 0;
                 MenuButton.playClick();
                 return;

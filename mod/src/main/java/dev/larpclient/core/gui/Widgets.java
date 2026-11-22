@@ -61,7 +61,7 @@ public final class Widgets {
         Shapes.circle(x + w * value, y, 4, 0xFFFFFFFF);
     }
 
-    /** Minimal single-line input rendered with Inter. */
+    /** Single-line text input rendered with Inter: cursor, Home/End, Delete, click-to-place, clipboard. */
     public static final class TextInput {
         public final float x;
         public final float y;
@@ -72,6 +72,9 @@ public final class Widgets {
         private final String placeholder;
         private final int maxLength;
         private boolean selectAll;
+        private int cursor;
+        private int scroll; // index of the first visible character
+        private long lastInput;
 
         public TextInput(float x, float y, float w, float h, String placeholder, int maxLength) {
             this.x = x;
@@ -82,30 +85,55 @@ public final class Widgets {
             this.maxLength = maxLength;
         }
 
+        public void setText(String value) {
+            text = value == null ? "" : value;
+            cursor = text.length();
+            scroll = 0;
+            selectAll = false;
+        }
+
+        private float inner() {
+            return w - 12;
+        }
+
+        /** Keep the cursor inside the visible window. */
+        private void clampScroll(LarpFont font) {
+            cursor = Math.max(0, Math.min(text.length(), cursor));
+            scroll = Math.max(0, Math.min(scroll, cursor));
+            while (scroll < cursor && font.width(text.substring(scroll, cursor)) > inner()) {
+                scroll++;
+            }
+        }
+
+        private String visible(LarpFont font) {
+            int end = scroll;
+            while (end < text.length() && font.width(text.substring(scroll, end + 1)) <= inner()) {
+                end++;
+            }
+            return text.substring(scroll, end);
+        }
+
         public void draw() {
+            if (cursor > text.length()) {
+                cursor = text.length(); // text replaced from outside
+            }
             Shapes.roundedRect(x, y, w, h, 4, focused ? 0x1CFFFFFF : 0x10FFFFFF);
             Shapes.roundedOutline(x, y, w, h, 4, 0.6f, focused ? 0xA08B5CF6 : 0x14FFFFFF);
             LarpFont font = Ui.BODY;
+            clampScroll(font);
             float ty = y + (h - font.height()) / 2f;
-            float inner = w - 12;
             if (text.isEmpty()) {
                 font.draw(placeholder, x + (focused ? 8 : 6), ty, 0x66FFFFFF);
             } else {
-                String visible = text;
-                while (font.width(visible) > inner && visible.length() > 1) {
-                    visible = visible.substring(1);
-                }
+                String shown = visible(font);
                 if (selectAll && focused) {
-                    Shapes.rect(x + 6, ty, font.width(visible), font.height(), 0x608B5CF6);
+                    Shapes.rect(x + 6, ty, font.width(shown), font.height(), 0x608B5CF6);
                 }
-                font.draw(visible, x + 6, ty, 0xFFFFFFFF);
+                font.draw(shown, x + 6, ty, 0xFFFFFFFF);
             }
-            if (focused && (System.currentTimeMillis() / 530) % 2 == 0 && !selectAll) {
-                String visible = text;
-                while (font.width(visible) > inner && visible.length() > 1) {
-                    visible = visible.substring(1);
-                }
-                float cx = x + 6 + font.width(visible) + 0.5f;
+            boolean blinkOn = (System.currentTimeMillis() - lastInput) < 500 || (System.currentTimeMillis() / 530) % 2 == 0;
+            if (focused && blinkOn && !selectAll) {
+                float cx = x + 6 + font.width(text.substring(scroll, cursor)) + 0.25f;
                 Shapes.rect(cx, ty + 0.5f, 0.75f, font.height() - 1, 0xFFFFFFFF);
             }
         }
@@ -113,12 +141,28 @@ public final class Widgets {
         public void mouseClicked(int mouseX, int mouseY) {
             focused = RenderUtil.hovered(mouseX, mouseY, x, y, w, h);
             selectAll = false;
+            if (focused) {
+                // place the cursor at the nearest character boundary
+                LarpFont font = Ui.BODY;
+                float rel = mouseX - (x + 6);
+                int best = scroll;
+                for (int i = scroll; i <= text.length(); i++) {
+                    if (font.width(text.substring(scroll, i)) <= rel + 1.5f) {
+                        best = i;
+                    } else {
+                        break;
+                    }
+                }
+                cursor = best;
+                lastInput = System.currentTimeMillis();
+            }
         }
 
         public boolean keyTyped(char c, int keyCode) {
             if (!focused) {
                 return false;
             }
+            lastInput = System.currentTimeMillis();
             if (GuiScreen.isKeyComboCtrlA(keyCode)) {
                 selectAll = true;
                 return true;
@@ -131,14 +175,47 @@ public final class Widgets {
                 GuiScreen.setClipboardString(text);
                 return true;
             }
-            if (keyCode == Keyboard.KEY_BACK) {
-                if (selectAll || GuiScreen.isCtrlKeyDown()) {
-                    text = "";
-                } else if (!text.isEmpty()) {
-                    text = text.substring(0, text.length() - 1);
-                }
-                selectAll = false;
+            if (GuiScreen.isKeyComboCtrlX(keyCode)) {
+                GuiScreen.setClipboardString(text);
+                setText("");
                 return true;
+            }
+            switch (keyCode) {
+                case Keyboard.KEY_LEFT:
+                    cursor = selectAll ? 0 : GuiScreen.isCtrlKeyDown() ? wordLeft() : Math.max(0, cursor - 1);
+                    selectAll = false;
+                    return true;
+                case Keyboard.KEY_RIGHT:
+                    cursor = selectAll ? text.length() : GuiScreen.isCtrlKeyDown() ? wordRight() : Math.min(text.length(), cursor + 1);
+                    selectAll = false;
+                    return true;
+                case Keyboard.KEY_HOME:
+                    cursor = 0;
+                    selectAll = false;
+                    return true;
+                case Keyboard.KEY_END:
+                    cursor = text.length();
+                    selectAll = false;
+                    return true;
+                case Keyboard.KEY_BACK:
+                    if (selectAll) {
+                        setText("");
+                    } else if (cursor > 0) {
+                        int from = GuiScreen.isCtrlKeyDown() ? wordLeft() : cursor - 1;
+                        text = text.substring(0, from) + text.substring(cursor);
+                        cursor = from;
+                    }
+                    return true;
+                case Keyboard.KEY_DELETE:
+                    if (selectAll) {
+                        setText("");
+                    } else if (cursor < text.length()) {
+                        int to = GuiScreen.isCtrlKeyDown() ? wordRight() : cursor + 1;
+                        text = text.substring(0, cursor) + text.substring(to);
+                    }
+                    return true;
+                default:
+                    break;
             }
             if (ChatAllowedCharacters.isAllowedCharacter(c)) {
                 insert(String.valueOf(c));
@@ -147,15 +224,42 @@ public final class Widgets {
             return false;
         }
 
+        private int wordLeft() {
+            int i = cursor;
+            while (i > 0 && !Character.isLetterOrDigit(text.charAt(i - 1))) {
+                i--;
+            }
+            while (i > 0 && Character.isLetterOrDigit(text.charAt(i - 1))) {
+                i--;
+            }
+            return i;
+        }
+
+        private int wordRight() {
+            int i = cursor;
+            while (i < text.length() && !Character.isLetterOrDigit(text.charAt(i))) {
+                i++;
+            }
+            while (i < text.length() && Character.isLetterOrDigit(text.charAt(i))) {
+                i++;
+            }
+            return i;
+        }
+
         private void insert(String s) {
             if (selectAll) {
-                text = "";
-                selectAll = false;
+                setText("");
             }
-            text = ChatAllowedCharacters.filterAllowedCharacters(text + s.replace("\n", "").replace("\r", ""));
-            if (text.length() > maxLength) {
-                text = text.substring(0, maxLength);
+            String clean = ChatAllowedCharacters.filterAllowedCharacters(s.replace("\n", "").replace("\r", "").trim());
+            int room = maxLength - text.length();
+            if (room <= 0) {
+                return;
             }
+            if (clean.length() > room) {
+                clean = clean.substring(0, room);
+            }
+            text = text.substring(0, cursor) + clean + text.substring(cursor);
+            cursor += clean.length();
         }
     }
 }

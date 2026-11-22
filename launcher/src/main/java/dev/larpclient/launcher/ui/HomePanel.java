@@ -21,8 +21,6 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.awt.font.TextAttribute;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
@@ -145,12 +143,7 @@ public final class HomePanel extends HomeBackdrop {
         text.add(accountType);
         card.add(avatar, BorderLayout.WEST);
         card.add(text, BorderLayout.CENTER);
-        card.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                frame.show("Accounts");
-            }
-        });
+        Components.onClick(card, () -> frame.show("Accounts"));
         JPanel wrap = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         wrap.setOpaque(false);
         JPanel vertical = new JPanel(new BorderLayout());
@@ -178,7 +171,10 @@ public final class HomePanel extends HomeBackdrop {
                 hasPanorama = true;
             }
         }
-        status.setText(account == null ? "Add an account to play" : "Ready  ·  " + String.format("%.1f GB memory", frame.settings.memoryMb / 1024.0));
+        if (game == null) {
+            launch.setIdle(account == null ? "Add account" : "Launch");
+        }
+        status.setText(account == null ? "Add an offline profile or Microsoft account to play" : "Ready  ·  " + String.format("%.1f GB memory", frame.settings.memoryMb / 1024.0));
         repaint();
     }
 
@@ -195,6 +191,7 @@ public final class HomePanel extends HomeBackdrop {
         Account account = frame.accounts.selected();
         if (account == null) {
             frame.show("Accounts");
+            frame.accountsPanel.focusUsername();
             return;
         }
         status.setForeground(Palette.TEXT_DIM);

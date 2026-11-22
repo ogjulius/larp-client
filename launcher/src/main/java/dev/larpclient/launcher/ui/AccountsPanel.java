@@ -128,6 +128,11 @@ public final class AccountsPanel extends JPanel {
         return row;
     }
 
+    /** Put the caret in the username box (used when Launch is pressed without an account). */
+    void focusUsername() {
+        SwingUtilities.invokeLater(offlineName::requestFocusInWindow);
+    }
+
     void reload() {
         list.removeAll();
         Components.Card card = new Components.Card(null, 16) {
@@ -256,10 +261,14 @@ public final class AccountsPanel extends JPanel {
             showMessage("Usernames are 3–16 characters: letters, numbers and underscores.", true);
             return;
         }
+        boolean first = frame.accounts.all().isEmpty();
         frame.accounts.add(Account.offline(name));
         offlineName.setText("");
         showMessage("Added " + name + ".", false);
         persist();
+        if (first) {
+            frame.show("Home"); // first account: straight back to the Launch button
+        }
     }
 
     private void showMessage(String text, boolean error) {

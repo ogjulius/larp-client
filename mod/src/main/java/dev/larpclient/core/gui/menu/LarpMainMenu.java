@@ -112,8 +112,13 @@ public final class LarpMainMenu extends GuiScreen {
 
         float footIn = intro(500);
         int footAlpha = (int) (0x80 * footIn) << 24;
-        Ui.SMALL.draw("LARP Client " + Reference.VERSION + "   \u00B7   Minecraft " + Reference.MC_VERSION
-                + "   \u00B7   Not affiliated with Mojang or Microsoft", left, height - 16, footAlpha | 0xFFFFFF);
+        String footer = "LARP Client " + Reference.VERSION + "   \u00B7   Minecraft " + Reference.MC_VERSION;
+        String legal = "   \u00B7   Not affiliated with Mojang or Microsoft";
+        float room = width - MusicWidget.WIDTH - 24 - left;
+        if (Ui.SMALL.width(footer + legal) <= room) {
+            footer += legal;
+        }
+        Ui.SMALL.draw(footer, left, height - 16, footAlpha | 0xFFFFFF);
 
         drawAccount(intro(300));
         if (intro(450) > 0) {
