@@ -79,7 +79,9 @@ public final class SettingsPanel extends JPanel {
         body.add(group("Game",
                 row("Memory", "RAM for Minecraft. 2–4 GB is plenty for 1.8.9.", controls(memory, memoryValue)),
                 row("Window size", "Size of the game window when it opens.", controls(width, times, height)),
-                row("Start in fullscreen", "Overrides the window size.", controls(fullscreen))));
+                row("Start in fullscreen", "Compositor-managed fullscreen: works on Hyprland, Sway, KDE and GNOME.", controls(fullscreen)),
+                row("Threaded OpenGL", "Mesa glthread / NVIDIA threaded optimisations. Usually a large FPS boost.",
+                        controls(switchBox(frame.settings.threadedGl, v -> frame.settings.threadedGl = v)))));
 
         // ---- Java
         JTextField javaField = field(frame.settings.javaPath, 260, "Automatic", v -> frame.settings.javaPath = v);

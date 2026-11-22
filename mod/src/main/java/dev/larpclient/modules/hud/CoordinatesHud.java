@@ -9,7 +9,7 @@ public final class CoordinatesHud extends TextHudModule {
     private final BooleanSetting showDirection = setting(new BooleanSetting("Show Facing", "Append the facing direction", true));
 
     public CoordinatesHud() {
-        super("Coordinates", "Shows your block position", 0.0, 0.15);
+        super("Coordinates", "Shows your block position", 1.0, 0.255);
     }
 
     @Override

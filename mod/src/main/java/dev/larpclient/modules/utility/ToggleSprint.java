@@ -14,7 +14,7 @@ public final class ToggleSprint extends TextHudModule {
     private boolean toggled;
 
     public ToggleSprint() {
-        super("Toggle Sprint", "Tap your sprint key to toggle sprinting", 0.0, 0.97);
+        super("Toggle Sprint", "Tap your sprint key to toggle sprinting", 0.0, 1.0);
         on(KeyPressEvent.class, e -> {
             if (e.keyCode == sprintKey().getKeyCode()) {
                 toggled = !toggled;
@@ -45,14 +45,26 @@ public final class ToggleSprint extends TextHudModule {
         if (!showText.isOn()) {
             return null;
         }
+        boolean modern = dev.larpclient.modules.hud.HudTheme.modern();
         if (toggled) {
-            return "[Sprinting (Toggled)]";
+            return modern ? "Sprinting" : "[Sprinting (Toggled)]";
         }
-        return sprintKey().isKeyDown() ? "[Sprinting (Key Held)]" : null;
+        if (sprintKey().isKeyDown()) {
+            return modern ? "Sprinting" : "[Sprinting (Key Held)]";
+        }
+        return null;
     }
 
     @Override
     protected String getPlaceholder() {
-        return "[Sprinting (Toggled)]";
+        return dev.larpclient.modules.hud.HudTheme.modern() ? "Sprinting" : "[Sprinting (Toggled)]";
+    }
+
+    @Override
+    protected String getSuffix() {
+        if (!dev.larpclient.modules.hud.HudTheme.modern()) {
+            return null;
+        }
+        return toggled ? "toggled" : "held";
     }
 }

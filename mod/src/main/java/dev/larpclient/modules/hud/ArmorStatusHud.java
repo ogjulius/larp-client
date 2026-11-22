@@ -1,5 +1,6 @@
 package dev.larpclient.modules.hud;
 
+import dev.larpclient.core.hud.HudDraw;
 import dev.larpclient.core.hud.HudModule;
 import dev.larpclient.core.setting.BooleanSetting;
 import dev.larpclient.core.setting.ModeSetting;
@@ -26,7 +27,7 @@ public final class ArmorStatusHud extends HudModule {
     private final BooleanSetting colorCode = setting(new BooleanSetting("Color By Durability", "Green → red as items wear out", true));
 
     public ArmorStatusHud() {
-        super("Armor Status", "Shows your armour and held item durability", 1.0, 0.5);
+        super("Armor Status", "Shows your armour and held item durability", 1.0, 0.92);
     }
 
     private ItemStack[] stacks(boolean editing) {
@@ -92,7 +93,7 @@ public final class ArmorStatusHud extends HudModule {
             GlStateManager.popMatrix();
             String text = durabilityText(stack);
             if (text != null) {
-                RenderUtil.text(text, 20, y + 4, color(stack), true);
+                HudDraw.text(text, 20, y + (16 - HudDraw.height()) / 2f, color(stack));
             }
             y += ROW;
         }
@@ -118,6 +119,6 @@ public final class ArmorStatusHud extends HudModule {
             return 0xFFFFFFFF;
         }
         float fraction = 1f - (float) stack.getItemDamage() / Math.max(1, stack.getMaxDamage());
-        return RenderUtil.blend(0xFFFF5555, 0xFF55FF55, fraction);
+        return HudTheme.modern() ? RenderUtil.blend(0xFFFF6B6B, 0xFF7CF29A, fraction) : RenderUtil.blend(0xFFFF5555, 0xFF55FF55, fraction);
     }
 }

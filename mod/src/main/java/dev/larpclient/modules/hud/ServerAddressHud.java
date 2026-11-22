@@ -5,7 +5,7 @@ import dev.larpclient.core.hud.TextHudModule;
 
 public final class ServerAddressHud extends TextHudModule {
     public ServerAddressHud() {
-        super("Server Address", "Shows the server you are playing on", 1.0, 0.15);
+        super("Server Address", "Shows the server you are playing on", 1.0, 0.17);
     }
 
     @Override

@@ -139,6 +139,28 @@ which PvP players expect.
 into `mod/run/screenshots/larp-tour-N.png`, then quits. It doesn't depend on your window manager.
 Use it to review UI changes. The README images come from it.
 
+### Fullscreen on Wayland compositors
+
+LWJGL 2 implements fullscreen by recreating its window with `_NET_WM_STATE_FULLSCREEN` pre-set,
+plus optional XRandR mode switches. Under XWayland, Hyprland ignores that pre-set state, so the game
+renders at monitor size into a normal window (cropped picture, wrong mouse mapping). `platform/
+CompositorFullscreen` keeps the window managed and sends the EWMH `_NET_WM_STATE` client message
+through libX11 (via JNA, which ships with Minecraft). The compositor resizes the window and vanilla's
+resize handling follows. `MixinMinecraft#toggleFullscreen` routes F11 there on Linux
+(`-Dlarp.legacyFullscreen=true` disables it), and the launcher passes `-Dlarp.startFullscreen=true`
+instead of `--fullscreen`. `-Dlarp.fullscreenProbe=true` toggles fullscreen by itself and logs sizes.
+This was verified on Hyprland 0.57: the window reports fullscreen at 1920×1080 and the game follows, repeatedly.
+
+### Performance
+
+- `FastRender`: cancels `Minecraft#checkGLError` (a glGetError pipeline stall, several per
+  frame), and lifts vanilla's 30 FPS menu cap to a configurable 120.
+- Launcher: `-Xms = -Xmx`, G1 tuned for client allocation patterns (large young gen, 30 ms pause
+  goal, string de-duplication, `DisableExplicitGC`). On Linux it sets `mesa_glthread=true` and
+  `__GL_THREADED_OPTIMIZATIONS=1` (toggle in Settings) and disables driver-forced vsync.
+- First run writes a fast `options.txt` (VBOs, no vsync, fast graphics, no clouds, fewer particles,
+  no snooper or tutorial). It never overwrites an existing one.
+
 ### Usability testing in a virtual display
 
 Robot-driven UI tests must not run on a live desktop: keyboard focus belongs to whatever window

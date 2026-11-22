@@ -35,7 +35,9 @@ A lightweight, Linux-first **PvP client for Minecraft 1.8.9**. It comes in two p
 | **Menus** | Starry-sky main menu (vanilla menus too) · mod menu (Right Shift or pause menu → LARP Mods) · HUD editor · music player |
 | **HUD** | FPS · CPS · Keystrokes · Armor Status · Potion Effects · Coordinates · Direction · Ping · Clock · Memory · Combo Counter · Reach Display · Server Address · Now Playing · Toggle Sprint |
 | **Utility** | Zoom (smooth, scroll-adjustable) · Freelook · Fullbright · No Hurt Cam |
-| **Performance** | Background FPS Limit · Particle Limiter · Entity Culling |
+| **Performance** | Fast Render (no glGetError stalls, smooth menus) · Background FPS Limit · Particle Limiter · Entity Culling · tuned G1 JVM flags · threaded OpenGL on Linux · fast first-run video settings |
+| **Display** | Fullscreen that actually works on Wayland (Hyprland, Sway, KDE, GNOME) and X11: F11 asks the compositor for fullscreen instead of LWJGL's broken XWayland path |
+| **HUD Theme** | Modern rounded HUD with Inter text (or Classic), adjustable opacity, corners and accent |
 
 **Music player**: paste any direct **MP3 / WAV** link or an **MP3 internet-radio stream**. Control it
 from the main menu or from *Mod menu → Music*. It supports shuffle, autoplay, volume and a "Now Playing" HUD.

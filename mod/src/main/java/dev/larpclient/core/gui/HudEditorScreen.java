@@ -64,10 +64,14 @@ public final class HudEditorScreen extends GuiScreen {
             }
             float x = hud.getScreenX(width);
             float y = hud.getScreenY(height);
-            RenderUtil.rect(x - 1, y - 1, x + hud.getScaledWidth() + 1, y + hud.getScaledHeight() + 1,
-                    hud == hovered ? 0x408B5CF6 : 0x20FFFFFF);
-            RenderUtil.outline(x - 1, y - 1, x + hud.getScaledWidth() + 1, y + hud.getScaledHeight() + 1,
-                    hud == hovered ? Theme.ACCENT : 0x60FFFFFF);
+            boolean hot = hud == hovered;
+            float pad = 1.5f;
+            if (hot) {
+                dev.larpclient.core.render.Shapes.roundedRect(x - pad, y - pad, hud.getScaledWidth() + pad * 2,
+                        hud.getScaledHeight() + pad * 2, 4, 0x248B5CF6);
+            }
+            dev.larpclient.core.render.Shapes.roundedOutline(x - pad, y - pad, hud.getScaledWidth() + pad * 2,
+                    hud.getScaledHeight() + pad * 2, 4, hot ? 1f : 0.5f, hot ? Theme.ACCENT : 0x40FFFFFF);
             HudRenderer.draw(hud, width, height, partialTicks, true);
         }
         String hint = "Drag to move  \u00B7  Scroll to resize  \u00B7  Right-click for options  \u00B7  Shift: no snapping  \u00B7  Esc to finish";

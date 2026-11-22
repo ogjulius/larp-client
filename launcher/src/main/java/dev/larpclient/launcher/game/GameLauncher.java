@@ -57,6 +57,7 @@ public final class GameLauncher {
                 }
             }
         }
+        writeDefaultOptions();
         // Themed Forge loading screen.
         Path splash = files.instance.resolve("config").resolve("splash.properties");
         if (!Files.exists(splash)) {
@@ -69,11 +70,29 @@ public final class GameLauncher {
         }
     }
 
+    /**
+     * First run only: performance-oriented video settings (VBOs, no VSync, fast graphics, no clouds,
+     * fewer particles) and no tutorial/snooper noise. Never touches an existing options.txt.
+     */
+    private void writeDefaultOptions() throws IOException {
+        Path options = files.instance.resolve("options.txt");
+        if (Files.exists(options)) {
+            return;
+        }
+        Files.writeString(options, String.join("\n",
+                "useVbo:true", "fboEnable:true", "enableVsync:false", "maxFps:260",
+                "fancyGraphics:false", "ao:0", "renderClouds:false", "particles:1",
+                "entityShadows:false", "mipmapLevels:0", "renderDistance:8", "useNativeTransport:true",
+                "snooperEnabled:false", "showInventoryAchievementHint:false", "pauseOnLostFocus:false",
+                "guiScale:0", "") );
+    }
+
     public List<String> buildCommand(InstalledGame game, Account account, LauncherSettings settings, Path java) {
         List<String> cmd = new ArrayList<>();
         cmd.add(java.toString());
         cmd.add("-Xmx" + settings.memoryMb + "M");
-        cmd.add("-Xms" + Math.min(1024, settings.memoryMb) + "M");
+        // Fixed heap size: no resize pauses while playing.
+        cmd.add("-Xms" + settings.memoryMb + "M");
         if (settings.jvmArgs != null && !settings.jvmArgs.isBlank()) {
             cmd.addAll(Arrays.asList(settings.jvmArgs.trim().split("\\s+")));
         }
@@ -81,6 +100,9 @@ public final class GameLauncher {
         cmd.add("-Dfml.ignoreInvalidMinecraftCertificates=true");
         cmd.add("-Dfml.ignorePatchDiscrepancies=true");
         cmd.add("-Dminecraft.launcher.brand=larpclient");
+        if (settings.fullscreen) {
+            cmd.add("-Dlarp.startFullscreen=true");
+        }
         if (game.loggingArgument != null && game.loggingConfig != null) {
             // Mojang's patched log4j config (mitigates Log4Shell on 1.8.9's log4j 2.0-beta9).
             cmd.add(game.loggingArgument.replace("${path}", game.loggingConfig.toString()));
@@ -102,14 +124,12 @@ public final class GameLauncher {
         for (String arg : game.minecraftArguments.split(" ")) {
             cmd.add(substitute(arg, vars));
         }
-        if (settings.fullscreen) {
-            cmd.add("--fullscreen");
-        } else {
-            cmd.add("--width");
-            cmd.add(String.valueOf(settings.width));
-            cmd.add("--height");
-            cmd.add(String.valueOf(settings.height));
-        }
+        // Fullscreen is requested from the compositor by the mod (works on Wayland/Hyprland);
+        // LWJGL's own --fullscreen path breaks under XWayland.
+        cmd.add("--width");
+        cmd.add(String.valueOf(settings.width));
+        cmd.add("--height");
+        cmd.add(String.valueOf(settings.height));
         return cmd;
     }
 
@@ -123,11 +143,24 @@ public final class GameLauncher {
 
     /** Start the game; each output line is passed to {@code log} on a background thread. */
     public Process start(List<String> command, Consumer<String> log) throws IOException {
+        return start(command, log, true);
+    }
+
+    public Process start(List<String> command, Consumer<String> log, boolean threadedGl) throws IOException {
         Files.createDirectories(files.instance);
-        Process process = new ProcessBuilder(command)
+        ProcessBuilder builder = new ProcessBuilder(command)
                 .directory(files.instance.toFile())
-                .redirectErrorStream(true)
-                .start();
+                .redirectErrorStream(true);
+        if (Platform.OS == Platform.Os.LINUX) {
+            java.util.Map<String, String> env = builder.environment();
+            if (threadedGl) {
+                env.putIfAbsent("mesa_glthread", "true");             // Mesa (AMD / Intel)
+                env.putIfAbsent("__GL_THREADED_OPTIMIZATIONS", "1"); // NVIDIA proprietary
+            }
+            env.putIfAbsent("__GL_SYNC_TO_VBLANK", "0");             // let the in-game VSync option decide
+            env.putIfAbsent("vblank_mode", "0");
+        }
+        Process process = builder.start();
         Thread pump = new Thread(() -> {
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {

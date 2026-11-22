@@ -15,7 +15,7 @@ public final class ReachDisplayHud extends TextHudModule {
     private long lastHit;
 
     public ReachDisplayHud() {
-        super("Reach Display", "Shows how far away your last hit landed", 0.0, 0.7);
+        super("Reach Display", "Shows how far away your last hit landed", 0.0, 0.91);
         on(AttackEntityEvent.class, this::onAttack);
     }
 

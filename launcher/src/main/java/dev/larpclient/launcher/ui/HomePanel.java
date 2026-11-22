@@ -219,7 +219,7 @@ public final class HomePanel extends HomeBackdrop {
             frame.console.append("[launcher] Java: " + java);
             frame.console.append("[launcher] " + GameLauncher.redact(command, account));
             progress("Starting Minecraft", -1);
-            game = launcher.start(command, frame.console::append);
+            game = launcher.start(command, frame.console::append, frame.settings.threadedGl);
             SwingUtilities.invokeLater(() -> {
                 launch.setBusy("Running", "Minecraft is open", 1);
                 if (!frame.settings.keepLauncherOpen) {

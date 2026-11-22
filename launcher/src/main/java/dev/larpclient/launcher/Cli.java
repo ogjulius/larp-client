@@ -104,7 +104,7 @@ final class Cli {
         }
         List<String> command = launcher.buildCommand(game, account, settings, java);
         System.out.println("[larp] " + GameLauncher.redact(command, account));
-        Process process = launcher.start(command, System.out::println);
+        Process process = launcher.start(command, System.out::println, settings.threadedGl);
         return process.waitFor();
     }
 }

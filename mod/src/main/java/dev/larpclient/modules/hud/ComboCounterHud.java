@@ -20,7 +20,7 @@ public final class ComboCounterHud extends TextHudModule {
     private boolean awaitingHurt;
 
     public ComboCounterHud() {
-        super("Combo Counter", "Counts consecutive hits without being hit back", 0.0, 0.62);
+        super("Combo Counter", "Counts consecutive hits without being hit back", 0.0, 0.82);
         on(AttackEntityEvent.class, this::onAttack);
         on(ClientTickEvent.class, e -> onTick());
     }

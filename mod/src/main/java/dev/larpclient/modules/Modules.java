@@ -8,6 +8,7 @@ import dev.larpclient.modules.hud.CoordinatesHud;
 import dev.larpclient.modules.hud.CpsHud;
 import dev.larpclient.modules.hud.DirectionHud;
 import dev.larpclient.modules.hud.FpsHud;
+import dev.larpclient.modules.hud.HudTheme;
 import dev.larpclient.modules.hud.KeystrokesHud;
 import dev.larpclient.modules.hud.MemoryHud;
 import dev.larpclient.modules.hud.NowPlayingHud;
@@ -17,6 +18,7 @@ import dev.larpclient.modules.hud.ReachDisplayHud;
 import dev.larpclient.modules.hud.ServerAddressHud;
 import dev.larpclient.modules.performance.BackgroundFpsLimit;
 import dev.larpclient.modules.performance.EntityCulling;
+import dev.larpclient.modules.performance.FastRender;
 import dev.larpclient.modules.performance.ParticleLimiter;
 import dev.larpclient.modules.utility.Freelook;
 import dev.larpclient.modules.utility.Fullbright;
@@ -35,6 +37,7 @@ public final class Modules {
 
     public static void registerAll(ModuleManager m) {
         // HUD
+        m.register(new HudTheme());
         m.register(new FpsHud());
         m.register(new CpsHud());
         m.register(new KeystrokesHud());
@@ -59,6 +62,7 @@ public final class Modules {
         m.register(new BackgroundFpsLimit());
         m.register(new ParticleLimiter());
         m.register(new EntityCulling());
+        m.register(new FastRender());
     }
 
     /** Key bindings shown in vanilla Controls (hold-style features). */

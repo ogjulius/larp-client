@@ -1,5 +1,6 @@
 package dev.larpclient.modules.hud;
 
+import dev.larpclient.core.hud.HudDraw;
 import dev.larpclient.core.hud.HudModule;
 import dev.larpclient.core.setting.BooleanSetting;
 import dev.larpclient.core.util.RenderUtil;
@@ -25,7 +26,7 @@ public final class PotionEffectsHud extends HudModule {
     private final BooleanSetting blinkExpiring = setting(new BooleanSetting("Blink When Expiring", "Flash effects under 10 seconds", true));
 
     public PotionEffectsHud() {
-        super("Potion Effects", "Lists your active potion effects", 1.0, 0.3);
+        super("Potion Effects", "Lists your active potion effects", 1.0, 0.52);
     }
 
     private List<PotionEffect> effects(boolean editing) {
@@ -82,8 +83,20 @@ public final class PotionEffectsHud extends HudModule {
             if (effect.getAmplifier() > 0) {
                 name += " " + I18n.format("enchantment.level." + (effect.getAmplifier() + 1));
             }
-            RenderUtil.text(name, textX, y + 2, 0xFFFFFFFF, true);
-            RenderUtil.text(Potion.getDurationString(effect), textX, y + 12, 0xFFAAAAAA, true);
+            if (HudTheme.modern()) {
+                HudDraw.panel(-2, y, WIDTH + 2, ROW - 2, HudTheme.background());
+                mc.getTextureManager().bindTexture(INVENTORY);
+                if (showIcons.isOn() && potion.hasStatusIcon()) {
+                    GlStateManager.color(1f, 1f, 1f, 1f);
+                    int icon = potion.getStatusIconIndex();
+                    mc.ingameGUI.drawTexturedModalRect(0, y + 1, (icon % 8) * 18, 198 + (icon / 8) * 18, 18, 18);
+                }
+                HudDraw.text(name, textX, y + 2, 0xFFFFFFFF);
+                HudDraw.text(Potion.getDurationString(effect), textX, y + 11, potion.isBadEffect() ? 0xFFFF8A8A : 0xB3FFFFFF);
+            } else {
+                RenderUtil.text(name, textX, y + 2, 0xFFFFFFFF, true);
+                RenderUtil.text(Potion.getDurationString(effect), textX, y + 12, 0xFFAAAAAA, true);
+            }
             y += ROW;
         }
     }

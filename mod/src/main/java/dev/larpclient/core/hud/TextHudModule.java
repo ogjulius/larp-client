@@ -30,6 +30,11 @@ public abstract class TextHudModule extends HudModule {
     /** Current text, or {@code null} to hide the element. */
     protected abstract String getText();
 
+    /** Optional dimmed unit drawn after the text in the modern style (e.g. "FPS"). */
+    protected String getSuffix() {
+        return null;
+    }
+
     /** Text shown in the HUD editor when {@link #getText()} has nothing to show. */
     protected String getPlaceholder() {
         return getName();
@@ -55,8 +60,25 @@ public abstract class TextHudModule extends HudModule {
         return getText() != null;
     }
 
+    private static final int MODERN_PAD_X = 6;
+    private static final int MODERN_HEIGHT = 15;
+
+    private String modernSuffix() {
+        String suffix = getSuffix();
+        return suffix == null ? null : " " + suffix;
+    }
+
     @Override
     public int getWidth() {
+        if (dev.larpclient.modules.hud.HudTheme.modern()) {
+            String text = getText();
+            if (text == null) {
+                text = getPlaceholder();
+            }
+            String suffix = getText() != null ? modernSuffix() : null;
+            float w = HudDraw.width(text) + (suffix == null ? 0 : HudDraw.width(suffix));
+            return background.isOn() ? (int) Math.ceil(Math.max(40, w + MODERN_PAD_X * 2)) : (int) Math.ceil(w);
+        }
         String text = displayText(true);
         int textWidth = text == null ? 0 : RenderUtil.font().getStringWidth(text);
         return background.isOn() ? Math.max(MIN_BOX_WIDTH, textWidth + PADDING * 2) : textWidth;
@@ -64,12 +86,19 @@ public abstract class TextHudModule extends HudModule {
 
     @Override
     public int getHeight() {
+        if (dev.larpclient.modules.hud.HudTheme.modern()) {
+            return background.isOn() ? MODERN_HEIGHT : (int) Math.ceil(HudDraw.height());
+        }
         int fontHeight = RenderUtil.font().FONT_HEIGHT;
         return background.isOn() ? fontHeight + PADDING * 2 - 1 : fontHeight;
     }
 
     @Override
     public void render(float partialTicks, boolean editing) {
+        if (dev.larpclient.modules.hud.HudTheme.modern()) {
+            renderModern(editing);
+            return;
+        }
         String text = displayText(editing);
         if (text == null) {
             return;
@@ -81,6 +110,31 @@ public abstract class TextHudModule extends HudModule {
             RenderUtil.text(text, (width - textWidth) / 2f, PADDING, textColor.resolve(), shadow.isOn());
         } else {
             RenderUtil.text(text, 0, 0, textColor.resolve(), shadow.isOn());
+        }
+    }
+
+    private void renderModern(boolean editing) {
+        String text = getText();
+        String suffix = text != null ? modernSuffix() : null;
+        if (text == null) {
+            if (!editing) {
+                return;
+            }
+            text = getPlaceholder();
+        }
+        int width = getWidth();
+        int color = textColor.resolve();
+        float contentW = HudDraw.width(text) + (suffix == null ? 0 : HudDraw.width(suffix));
+        float x = background.isOn() ? (width - contentW) / 2f : 0;
+        float y = background.isOn() ? (getHeight() - HudDraw.height()) / 2f : 0;
+        if (background.isOn()) {
+            // the module's own background colour keeps working; untouched defaults follow the theme
+            int bg = backgroundColor.get() == 0x6F000000 ? dev.larpclient.modules.hud.HudTheme.background() : backgroundColor.resolve();
+            HudDraw.panel(0, 0, width, getHeight(), bg);
+        }
+        float end = HudDraw.text(text, x, y, color);
+        if (suffix != null) {
+            HudDraw.text(suffix, end, y, HudDraw.dim(color, 0.6f));
         }
     }
 }

@@ -97,6 +97,7 @@ public final class LarpClient {
         MinecraftForge.EVENT_BUS.register(new dev.larpclient.core.gui.PauseMenuButton());
         new dev.larpclient.core.Onboarding(dataDir, events, menuKey, dev.larpclient.modules.utility.Zoom.KEY);
         dev.larpclient.core.dev.ScreenshotTour.installIfRequested();
+        dev.larpclient.core.dev.FullscreenProbe.installIfRequested();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             config.save();
             music.save();

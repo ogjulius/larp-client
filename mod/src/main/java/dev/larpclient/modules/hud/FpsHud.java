@@ -15,6 +15,11 @@ public final class FpsHud extends TextHudModule {
 
     @Override
     protected String getText() {
-        return Minecraft.getDebugFPS() + " FPS";
+        return dev.larpclient.modules.hud.HudTheme.modern() ? String.valueOf(Minecraft.getDebugFPS()) : Minecraft.getDebugFPS() + " FPS";
+    }
+
+    @Override
+    protected String getSuffix() {
+        return dev.larpclient.modules.hud.HudTheme.modern() ? "FPS" : null;
     }
 }
