@@ -1,5 +1,7 @@
 package dev.larpclient.core.gui;
 
+import dev.larpclient.core.render.Shapes;
+import dev.larpclient.core.render.Ui;
 import dev.larpclient.core.setting.BooleanSetting;
 import dev.larpclient.core.setting.ColorSetting;
 import dev.larpclient.core.setting.KeySetting;
@@ -11,9 +13,9 @@ import org.lwjgl.input.Keyboard;
 
 import java.awt.Color;
 
-/** Interactive editor for a single {@link Setting}. */
+/** Interactive editor row for a single {@link Setting}. */
 public abstract class SettingWidget<S extends Setting<?>> {
-    protected static final int ROW = 22;
+    protected static final int ROW = 24;
     protected final S setting;
     protected int x;
     protected int y;
@@ -72,12 +74,17 @@ public abstract class SettingWidget<S extends Setting<?>> {
         return RenderUtil.hovered(mouseX, mouseY, x, y, width, getHeight());
     }
 
-    protected void label(int mouseX, int mouseY) {
-        RenderUtil.text(setting.getName(), x + 6, y + 7, Theme.TEXT, false);
+    /** Row background + label; subclasses draw their control on the right. */
+    protected void row(int mouseX, int mouseY) {
+        if (hovered(mouseX, mouseY)) {
+            Shapes.roundedRect(x, y, width, getHeight() - 2, 4, 0x0CFFFFFF);
+        }
+        Ui.text(setting.getName(), x + 8, y + 8, 0xE6FFFFFF);
     }
 
-    protected void background(int mouseX, int mouseY) {
-        RenderUtil.rect(x, y, x + width, y + getHeight() - 2, hovered(mouseX, mouseY) ? Theme.CARD_HOVER : Theme.CARD);
+    /** Kept for callers outside the GUI package. */
+    public static void drawSwitch(int sx, int sy, boolean on) {
+        Widgets.toggle(sx, sy, on);
     }
 
     // ------------------------------------------------------------------ implementations
@@ -89,9 +96,8 @@ public abstract class SettingWidget<S extends Setting<?>> {
 
         @Override
         public void draw(int mouseX, int mouseY) {
-            background(mouseX, mouseY);
-            label(mouseX, mouseY);
-            drawSwitch(x + width - 28, y + 5, setting.isOn());
+            row(mouseX, mouseY);
+            Widgets.toggle(x + width - 26, y + 6, setting.isOn());
         }
 
         @Override
@@ -102,12 +108,6 @@ public abstract class SettingWidget<S extends Setting<?>> {
         }
     }
 
-    public static void drawSwitch(int sx, int sy, boolean on) {
-        RenderUtil.rect(sx, sy, sx + 22, sy + 10, on ? Theme.ACCENT : Theme.OFF);
-        int knob = on ? sx + 13 : sx + 1;
-        RenderUtil.rect(knob, sy + 1, knob + 8, sy + 9, Theme.TEXT);
-    }
-
     static final class Slider extends SettingWidget<NumberSetting> {
         private boolean dragging;
 
@@ -115,31 +115,24 @@ public abstract class SettingWidget<S extends Setting<?>> {
             super(setting);
         }
 
-        private int trackX() {
-            return x + width / 2;
+        private float trackX() {
+            return x + width * 0.45f;
         }
 
-        private int trackWidth() {
-            return width / 2 - 34;
+        private float trackWidth() {
+            return width * 0.55f - 44;
         }
 
         @Override
         public void draw(int mouseX, int mouseY) {
-            background(mouseX, mouseY);
-            label(mouseX, mouseY);
-            int tx = trackX();
-            int tw = trackWidth();
-            int ty = y + 9;
-            RenderUtil.rect(tx, ty, tx + tw, ty + 3, Theme.OFF);
-            int filled = (int) (tw * setting.getPercent());
-            RenderUtil.rect(tx, ty, tx + filled, ty + 3, Theme.ACCENT);
-            RenderUtil.rect(tx + filled - 2, ty - 3, tx + filled + 2, ty + 6, Theme.TEXT);
-            RenderUtil.text(setting.format(), tx + tw + 6, y + 7, Theme.TEXT_DIM, false);
+            row(mouseX, mouseY);
+            Widgets.slider(trackX(), y + 11, trackWidth(), (float) setting.getPercent());
+            Ui.BODY.drawRight(setting.format(), x + width - 8, y + 7, 0xB0FFFFFF);
         }
 
         @Override
         public void mouseClicked(int mouseX, int mouseY, int button) {
-            if (button == 0 && RenderUtil.hovered(mouseX, mouseY, trackX() - 3, y, trackWidth() + 6, ROW)) {
+            if (button == 0 && RenderUtil.hovered(mouseX, mouseY, trackX() - 4, y, trackWidth() + 8, ROW)) {
                 dragging = true;
                 mouseDragged(mouseX, mouseY);
             }
@@ -148,7 +141,7 @@ public abstract class SettingWidget<S extends Setting<?>> {
         @Override
         public void mouseDragged(int mouseX, int mouseY) {
             if (dragging) {
-                setting.setPercent(Math.max(0, Math.min(1, (mouseX - trackX()) / (double) trackWidth())));
+                setting.setPercent(Math.max(0, Math.min(1, (mouseX - trackX()) / trackWidth())));
             }
         }
 
@@ -165,11 +158,14 @@ public abstract class SettingWidget<S extends Setting<?>> {
 
         @Override
         public void draw(int mouseX, int mouseY) {
-            background(mouseX, mouseY);
-            label(mouseX, mouseY);
-            String text = "◀ " + setting.get() + " ▶";
-            int w = RenderUtil.font().getStringWidth(text);
-            RenderUtil.text(text, x + width - w - 6, y + 7, Theme.ACCENT, false);
+            row(mouseX, mouseY);
+            String value = setting.get();
+            float w = Ui.BODY_STRONG.width(value) + 26;
+            float bx = x + width - 8 - w;
+            Shapes.roundedRect(bx, y + 4, w, 14, 4, 0x14FFFFFF);
+            Shapes.triangle(bx + 7, y + 11, bx + 10, y + 8, bx + 10, y + 14, 0x99FFFFFF);
+            Shapes.triangle(bx + w - 7, y + 11, bx + w - 10, y + 14, bx + w - 10, y + 8, 0x99FFFFFF);
+            Ui.BODY_STRONG.drawCentered(value, bx + w / 2f, y + 6.5f, 0xFFFFFFFF);
         }
 
         @Override
@@ -189,12 +185,16 @@ public abstract class SettingWidget<S extends Setting<?>> {
 
         @Override
         public void draw(int mouseX, int mouseY) {
-            background(mouseX, mouseY);
-            label(mouseX, mouseY);
-            String text = listening ? "> press a key <"
+            row(mouseX, mouseY);
+            String text = listening ? "Press a key…"
                     : setting.get() == KeySetting.NONE ? "None" : Keyboard.getKeyName(setting.get());
-            int w = RenderUtil.font().getStringWidth(text);
-            RenderUtil.text(text, x + width - w - 6, y + 7, listening ? Theme.ACCENT : Theme.TEXT_DIM, false);
+            float w = Math.max(34, Ui.BODY_STRONG.width(text) + 14);
+            float bx = x + width - 8 - w;
+            Shapes.roundedRect(bx, y + 4, w, 14, 4, listening ? 0x408B5CF6 : 0x14FFFFFF);
+            if (listening) {
+                Shapes.roundedOutline(bx, y + 4, w, 14, 4, 0.6f, Theme.ACCENT);
+            }
+            Ui.BODY_STRONG.drawCentered(text, bx + w / 2f, y + 6.5f, 0xFFFFFFFF);
         }
 
         @Override
@@ -226,6 +226,7 @@ public abstract class SettingWidget<S extends Setting<?>> {
     static final class ColorPicker extends SettingWidget<ColorSetting> {
         private static final String[] LABELS = {"H", "S", "B", "A"};
         private int dragging = -1;
+        private boolean expanded;
 
         ColorPicker(ColorSetting setting) {
             super(setting);
@@ -233,19 +234,19 @@ public abstract class SettingWidget<S extends Setting<?>> {
 
         @Override
         public int getHeight() {
-            return ROW + 14;
+            return expanded ? ROW + 22 : ROW;
         }
 
-        private int sliderWidth() {
-            return (width - 12 - 3 * 6) / 4;
+        private float sliderWidth() {
+            return (width - 16 - 3 * 14) / 4f;
         }
 
-        private int sliderX(int i) {
-            return x + 6 + i * (sliderWidth() + 6);
+        private float sliderX(int i) {
+            return x + 8 + i * (sliderWidth() + 14);
         }
 
-        private int sliderY() {
-            return y + ROW;
+        private float sliderY() {
+            return y + ROW + 9;
         }
 
         private float value(int i) {
@@ -255,49 +256,59 @@ public abstract class SettingWidget<S extends Setting<?>> {
 
         @Override
         public void draw(int mouseX, int mouseY) {
-            background(mouseX, mouseY);
-            label(mouseX, mouseY);
-            int sw = x + width - 22;
-            RenderUtil.rect(sw - 1, y + 4, sw + 15, y + 18, Theme.BORDER);
-            RenderUtil.rect(sw, y + 5, sw + 14, y + 17, setting.resolve() | 0xFF000000);
-            if (setting.isChroma()) {
-                RenderUtil.text("Chroma", sw - 40, y + 7, Theme.ACCENT, false);
+            row(mouseX, mouseY);
+            float sw = x + width - 26;
+            Shapes.roundedRect(sw, y + 4, 18, 14, 4, setting.resolve() | 0xFF000000);
+            Shapes.roundedOutline(sw, y + 4, 18, 14, 4, 0.6f, 0x40FFFFFF);
+            String hex = setting.isChroma() ? "Chroma" : String.format("#%06X", setting.get() & 0xFFFFFF);
+            Ui.SMALL.drawRight(hex, sw - 6, y + 8, setting.isChroma() ? Theme.ACCENT : 0x80FFFFFF);
+            if (!expanded) {
+                return;
             }
             float[] hsb = setting.toHsb();
-            int w = sliderWidth();
+            float w = sliderWidth();
             for (int i = 0; i < 4; i++) {
-                int sx = sliderX(i);
-                int sy = sliderY();
-                // gradient preview, drawn in 2px strips
-                for (int px = 0; px < w; px += 2) {
-                    float t = px / (float) w;
-                    int c;
-                    switch (i) {
-                        case 0: c = Color.HSBtoRGB(t, 1, 1); break;
-                        case 1: c = Color.HSBtoRGB(hsb[0], t, hsb[2]); break;
-                        case 2: c = Color.HSBtoRGB(hsb[0], hsb[1], t); break;
-                        default: c = RenderUtil.blend(0xFF000000, setting.get() | 0xFF000000, t); break;
-                    }
-                    RenderUtil.rect(sx + px, sy, Math.min(sx + px + 2, sx + w), sy + 6, c | 0xFF000000);
+                float sx = sliderX(i);
+                float sy = sliderY();
+                int segments = 12;
+                for (int s = 0; s < segments; s++) {
+                    float t0 = s / (float) segments;
+                    float t1 = (s + 1) / (float) segments;
+                    Shapes.horizontalGradient(sx + w * t0, sy, w / segments + 0.1f, 4, sample(i, t0, hsb), sample(i, t1, hsb));
                 }
-                int knob = sx + (int) (value(i) * w);
-                RenderUtil.rect(knob - 1, sy - 2, knob + 1, sy + 8, Theme.TEXT);
-                RenderUtil.text(LABELS[i], sx - 0.5f, sy - 9, Theme.TEXT_DIM, false);
+                Shapes.circle(sx + value(i) * w, sy + 2, 3.5f, 0xFFFFFFFF);
+                Ui.LABEL.draw(LABELS[i], sx, sy - 9, 0x80FFFFFF, 1f);
+            }
+        }
+
+        private int sample(int channel, float t, float[] hsb) {
+            switch (channel) {
+                case 0: return Color.HSBtoRGB(t, 1, 1) | 0xFF000000;
+                case 1: return Color.HSBtoRGB(hsb[0], t, hsb[2]) | 0xFF000000;
+                case 2: return Color.HSBtoRGB(hsb[0], hsb[1], t) | 0xFF000000;
+                default: return RenderUtil.blend(0xFF202028, setting.get() | 0xFF000000, t);
             }
         }
 
         @Override
         public void mouseClicked(int mouseX, int mouseY, int button) {
-            int sw = x + width - 22;
-            if (button == 1 && RenderUtil.hovered(mouseX, mouseY, sw, y + 4, 16, 14)) {
+            float sw = x + width - 26;
+            if (button == 1 && RenderUtil.hovered(mouseX, mouseY, sw, y + 4, 18, 14)) {
                 setting.setChroma(!setting.isChroma());
                 return;
             }
             if (button != 0) {
                 return;
             }
+            if (RenderUtil.hovered(mouseX, mouseY, x, y, width, ROW)) {
+                expanded = !expanded;
+                return;
+            }
+            if (!expanded) {
+                return;
+            }
             for (int i = 0; i < 4; i++) {
-                if (RenderUtil.hovered(mouseX, mouseY, sliderX(i) - 2, sliderY() - 3, sliderWidth() + 4, 12)) {
+                if (RenderUtil.hovered(mouseX, mouseY, sliderX(i) - 4, sliderY() - 4, sliderWidth() + 8, 12)) {
                     dragging = i;
                     mouseDragged(mouseX, mouseY);
                     return;
@@ -310,7 +321,7 @@ public abstract class SettingWidget<S extends Setting<?>> {
             if (dragging < 0) {
                 return;
             }
-            float t = Math.max(0, Math.min(1, (mouseX - sliderX(dragging)) / (float) sliderWidth()));
+            float t = Math.max(0, Math.min(1, (mouseX - sliderX(dragging)) / sliderWidth()));
             if (dragging == 3) {
                 setting.setAlpha(Math.round(t * 255));
                 return;

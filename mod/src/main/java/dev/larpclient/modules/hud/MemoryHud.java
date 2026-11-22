@@ -4,7 +4,7 @@ import dev.larpclient.core.hud.TextHudModule;
 
 public final class MemoryHud extends TextHudModule {
     public MemoryHud() {
-        super("Memory", "Shows Java heap usage", 1.0, 0.035);
+        super("Memory", "Shows Java heap usage", 1.0, 0.075);
     }
 
     @Override

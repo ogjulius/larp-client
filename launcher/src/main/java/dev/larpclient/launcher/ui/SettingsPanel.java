@@ -1,8 +1,7 @@
 package dev.larpclient.launcher.ui;
 
-import dev.larpclient.launcher.util.Platform;
-
 import javax.swing.BorderFactory;
+import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -18,52 +17,54 @@ import javax.swing.SpinnerNumberModel;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.Font;
+import java.awt.Graphics;
 import java.io.IOException;
 import java.util.function.Consumer;
 
-/** Launcher and game settings; every change is saved immediately. */
+/** Launcher and game settings, grouped like a native preferences pane. Saved on every change. */
 public final class SettingsPanel extends JPanel {
     private final LauncherFrame frame;
 
     SettingsPanel(LauncherFrame frame) {
-        super(new BorderLayout(0, 16));
+        super(new BorderLayout(0, 22));
         this.frame = frame;
-        setBorder(BorderFactory.createEmptyBorder(20, 30, 24, 30));
-        add(Components.label("Settings", 26f, Font.BOLD, Palette.TEXT), BorderLayout.NORTH);
+        setBackground(Palette.BG);
+        setBorder(BorderFactory.createEmptyBorder(40, 44, 0, 44));
+        add(Components.pageHeader("Settings", "Changes are saved automatically."), BorderLayout.NORTH);
 
         JPanel body = new JPanel();
+        body.setOpaque(false);
         body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
 
-        // Memory
+        // ---- Game
         long totalMb = totalMemoryMb();
         int maxMb = (int) Math.max(2048, Math.min(16384, totalMb - 1024));
         JSlider memory = new JSlider(1024, maxMb, Math.min(maxMb, frame.settings.memoryMb));
-        memory.setMajorTickSpacing(1024);
-        memory.setSnapToTicks(false);
-        JLabel memoryValue = Components.label(gb(memory.getValue()), 13f, Font.BOLD, Palette.ACCENT_LIGHT);
+        memory.setOpaque(false);
+        memory.setPreferredSize(new Dimension(220, 24));
+        JLabel memoryValue = new JLabel(gb(memory.getValue()));
+        memoryValue.setFont(Fonts.semibold(13f));
+        memoryValue.setForeground(Palette.TEXT);
+        memoryValue.setPreferredSize(new Dimension(56, 20));
         memory.addChangeListener(e -> {
             int v = (memory.getValue() / 256) * 256;
             memoryValue.setText(gb(v));
             if (!memory.getValueIsAdjusting()) {
                 frame.settings.memoryMb = v;
                 save();
+                frame.home.refresh();
             }
         });
-        JPanel memRow = new JPanel(new BorderLayout(12, 0));
-        memRow.setOpaque(false);
-        memRow.add(memory, BorderLayout.CENTER);
-        memRow.add(memoryValue, BorderLayout.EAST);
-        body.add(section("Memory", "RAM given to Minecraft. 2–4 GB is plenty for 1.8.9 PvP.", memRow));
-
-        // Resolution
         JSpinner width = new JSpinner(new SpinnerNumberModel(frame.settings.width, 640, 7680, 10));
         JSpinner height = new JSpinner(new SpinnerNumberModel(frame.settings.height, 480, 4320, 10));
         width.setEditor(new JSpinner.NumberEditor(width, "#"));
         height.setEditor(new JSpinner.NumberEditor(height, "#"));
-        JCheckBox fullscreen = new JCheckBox("Fullscreen", frame.settings.fullscreen);
+        width.setPreferredSize(new Dimension(84, 30));
+        height.setPreferredSize(new Dimension(84, 30));
         width.addChangeListener(e -> {
             frame.settings.width = (Integer) width.getValue();
             save();
@@ -72,57 +73,55 @@ public final class SettingsPanel extends JPanel {
             frame.settings.height = (Integer) height.getValue();
             save();
         });
-        fullscreen.addActionListener(e -> {
-            frame.settings.fullscreen = fullscreen.isSelected();
-            save();
-        });
-        JPanel res = row(width, new JLabel("×"), height, fullscreen);
-        body.add(section("Window", "Initial game window size.", res));
+        JCheckBox fullscreen = switchBox(frame.settings.fullscreen, v -> frame.settings.fullscreen = v);
+        JLabel times = new JLabel("×");
+        times.setForeground(Palette.TEXT_DIM);
+        body.add(group("Game",
+                row("Memory", "RAM for Minecraft. 2–4 GB is plenty for 1.8.9.", controls(memory, memoryValue)),
+                row("Window size", "Size of the game window when it opens.", controls(width, times, height)),
+                row("Start in fullscreen", "Overrides the window size.", controls(fullscreen))));
 
-        // Java
-        JTextField javaField = new JTextField(frame.settings.javaPath, 32);
-        javaField.putClientProperty("JTextField.placeholderText", "Automatic (system Java 8, else downloaded)");
-        onChange(javaField, v -> frame.settings.javaPath = v);
-        JButton browse = new JButton("Browse…");
+        // ---- Java
+        JTextField javaField = field(frame.settings.javaPath, 260, "Automatic", v -> frame.settings.javaPath = v);
+        JButton browse = new JButton("Browse");
         browse.addActionListener(e -> {
             JFileChooser chooser = new JFileChooser("/usr/lib/jvm");
             if (chooser.showOpenDialog(frame) == JFileChooser.APPROVE_OPTION) {
                 javaField.setText(chooser.getSelectedFile().getAbsolutePath());
             }
         });
-        body.add(section("Java executable", "Minecraft 1.8.9 needs Java 8. Leave empty for automatic.", row(javaField, browse)));
+        JTextField jvm = field(frame.settings.jvmArgs, 340, "", v -> frame.settings.jvmArgs = v);
+        body.add(group("Java",
+                row("Java 8 executable", "Leave on automatic to use your system Java 8 or a managed runtime.", controls(javaField, browse)),
+                row("JVM arguments", "Advanced. Defaults are tuned for consistent frame times.", controls(jvm))));
 
-        JTextField jvm = new JTextField(frame.settings.jvmArgs, 40);
-        onChange(jvm, v -> frame.settings.jvmArgs = v);
-        body.add(section("JVM arguments", "Advanced. The defaults are tuned for smooth frame times.", row(jvm)));
-
-        JCheckBox keepOpen = new JCheckBox("Keep the launcher open while playing", frame.settings.keepLauncherOpen);
-        keepOpen.addActionListener(e -> {
-            frame.settings.keepLauncherOpen = keepOpen.isSelected();
-            save();
-        });
-        body.add(section("Launcher", "Shows live game output in the Console page when kept open.", row(keepOpen)));
-
-        JTextField clientId = new JTextField(frame.settings.microsoftClientId, 32);
-        clientId.putClientProperty("JTextField.placeholderText", "Azure application (client) ID");
-        onChange(clientId, v -> frame.settings.microsoftClientId = v.trim());
-        body.add(section("Microsoft sign-in", "Azure app ID approved for Minecraft login (see DEVELOPMENT.md).", row(clientId)));
-
-        JButton folder = new JButton("Open game folder");
-        folder.addActionListener(e -> {
+        // ---- Launcher
+        JCheckBox keepOpen = switchBox(frame.settings.keepLauncherOpen, v -> frame.settings.keepLauncherOpen = v);
+        JTextField clientId = field(frame.settings.microsoftClientId, 300, "Azure application (client) ID",
+                v -> frame.settings.microsoftClientId = v.trim());
+        JLabel where = new JLabel(frame.files.root.toString());
+        where.setFont(Fonts.regular(12f));
+        where.setForeground(Palette.TEXT_DIM);
+        JButton open = new JButton("Open");
+        open.addActionListener(e -> {
             try {
                 java.nio.file.Files.createDirectories(frame.files.instance);
             } catch (IOException ignored) {
-                // open will just fail silently
+                // nothing to open then
             }
-            Platform.open(frame.files.instance.toString());
+            dev.larpclient.launcher.util.Platform.open(frame.files.instance.toString());
         });
-        JLabel where = Components.label(frame.files.root.toString(), 12f, Font.PLAIN, Palette.TEXT_DIM);
-        body.add(section("Files", "Worlds, resource packs, screenshots and logs.", row(folder, where)));
+        body.add(group("Launcher",
+                row("Keep launcher open", "Stay open while playing to show live logs.", controls(keepOpen)),
+                row("Microsoft sign-in", "Client ID of an Azure app approved for Minecraft (see DEVELOPMENT.md).", controls(clientId)),
+                row("Game folder", "Worlds, resource packs, screenshots and logs.", controls(where, open))));
+        body.add(Box.createVerticalStrut(40));
 
         JScrollPane scroll = new JScrollPane(body);
         scroll.setBorder(null);
-        scroll.getVerticalScrollBar().setUnitIncrement(16);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.getVerticalScrollBar().setUnitIncrement(18);
         add(scroll, BorderLayout.CENTER);
     }
 
@@ -140,32 +139,75 @@ public final class SettingsPanel extends JPanel {
         }
     }
 
-    private JPanel section(String title, String hint, JComponent control) {
-        Components.Card card = new Components.Card(new BorderLayout(0, 10), 16);
-        JPanel text = new JPanel(new BorderLayout());
-        text.setOpaque(false);
-        text.add(Components.label(title, 14f, Font.BOLD, Palette.TEXT), BorderLayout.NORTH);
-        text.add(Components.label(hint, 12f, Font.PLAIN, Palette.TEXT_DIM), BorderLayout.SOUTH);
-        card.add(text, BorderLayout.NORTH);
-        card.add(control, BorderLayout.CENTER);
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, card.getPreferredSize().height + 10));
+    private JComponent group(String title, JComponent... rows) {
         JPanel wrap = new JPanel(new BorderLayout());
-        wrap.setBorder(BorderFactory.createEmptyBorder(0, 0, 12, 0));
-        wrap.add(card);
-        wrap.setMaximumSize(new Dimension(Integer.MAX_VALUE, card.getPreferredSize().height + 22));
+        wrap.setOpaque(false);
+        wrap.add(Components.sectionLabel(title), BorderLayout.NORTH);
+        Components.Card card = new Components.Card(null, 16);
+        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+        card.setBorder(BorderFactory.createEmptyBorder(4, 20, 4, 18));
+        for (int i = 0; i < rows.length; i++) {
+            if (i > 0) {
+                card.add(new Hairline());
+            }
+            card.add(rows[i]);
+        }
+        wrap.add(card, BorderLayout.CENTER);
+        wrap.setBorder(BorderFactory.createEmptyBorder(0, 0, 22, 0));
+        wrap.setAlignmentX(Component.LEFT_ALIGNMENT);
+        wrap.setMaximumSize(new Dimension(Integer.MAX_VALUE, wrap.getPreferredSize().height));
         return wrap;
     }
 
-    private static JPanel row(JComponent... components) {
-        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+    private JComponent row(String title, String hint, JComponent control) {
+        JPanel row = new JPanel(new BorderLayout(24, 0));
         row.setOpaque(false);
-        for (JComponent c : components) {
-            row.add(c);
-        }
+        row.setBorder(BorderFactory.createEmptyBorder(14, 0, 14, 0));
+        JPanel text = new JPanel();
+        text.setOpaque(false);
+        text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
+        JLabel t = new JLabel(title);
+        t.setFont(Fonts.semibold(14f));
+        t.setForeground(Palette.TEXT);
+        JLabel h = new JLabel(hint);
+        h.setFont(Fonts.regular(12f));
+        h.setForeground(Palette.TEXT_DIM);
+        text.add(t);
+        text.add(Box.createVerticalStrut(3));
+        text.add(h);
+        row.add(text, BorderLayout.CENTER);
+        row.add(control, BorderLayout.EAST);
         return row;
     }
 
-    private void onChange(JTextField field, Consumer<String> setter) {
+    private static JPanel controls(JComponent... components) {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        panel.setOpaque(false);
+        for (JComponent c : components) {
+            panel.add(c);
+        }
+        JPanel center = new JPanel(new java.awt.GridBagLayout());
+        center.setOpaque(false);
+        center.add(panel);
+        return center;
+    }
+
+    private JCheckBox switchBox(boolean value, Consumer<Boolean> setter) {
+        JCheckBox box = new JCheckBox();
+        box.setSelected(value);
+        box.setOpaque(false);
+        box.putClientProperty("JComponent.sizeVariant", "large");
+        box.addActionListener(e -> {
+            setter.accept(box.isSelected());
+            save();
+        });
+        return box;
+    }
+
+    private JTextField field(String value, int width, String placeholder, Consumer<String> setter) {
+        JTextField field = new JTextField(value);
+        field.setPreferredSize(new Dimension(width, 32));
+        field.putClientProperty("JTextField.placeholderText", placeholder);
         field.getDocument().addDocumentListener(new DocumentListener() {
             private void changed() {
                 setter.accept(field.getText());
@@ -187,6 +229,7 @@ public final class SettingsPanel extends JPanel {
                 changed();
             }
         });
+        return field;
     }
 
     private void save() {
@@ -194,6 +237,20 @@ public final class SettingsPanel extends JPanel {
             frame.settings.save();
         } catch (IOException e) {
             frame.console.append("[launcher] Could not save settings: " + e.getMessage());
+        }
+    }
+
+    /** 1px separator between rows. */
+    static final class Hairline extends JComponent {
+        Hairline() {
+            setPreferredSize(new Dimension(10, 1));
+            setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            g.setColor(new Color(255, 255, 255, 12));
+            g.fillRect(0, 0, getWidth(), 1);
         }
     }
 }

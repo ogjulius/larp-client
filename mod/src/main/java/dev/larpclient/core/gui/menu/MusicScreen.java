@@ -1,36 +1,37 @@
 package dev.larpclient.core.gui.menu;
 
 import dev.larpclient.LarpClient;
-import dev.larpclient.core.gui.SettingWidget;
 import dev.larpclient.core.gui.Theme;
+import dev.larpclient.core.gui.Widgets;
 import dev.larpclient.core.music.MusicPlayer;
 import dev.larpclient.core.music.Track;
+import dev.larpclient.core.render.Shapes;
+import dev.larpclient.core.render.Ui;
 import dev.larpclient.core.util.RenderUtil;
 import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.client.gui.GuiTextField;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 
 import java.io.IOException;
 import java.util.List;
 
-/** Playlist manager: add MP3/WAV/radio URLs, play, remove, shuffle, autoplay. */
+/** Playlist manager: add MP3/WAV/radio URLs, play, remove, shuffle, autoplay, volume. */
 public final class MusicScreen extends GuiScreen {
-    private static final int ROW = 20;
+    private static final int ROW = 22;
 
     private final GuiScreen parent;
     private final MusicWidget widget = new MusicWidget();
-    private GuiTextField urlField;
-    private GuiTextField titleField;
+    private Widgets.TextInput urlField;
+    private Widgets.TextInput titleField;
     private MenuButton addButton;
-    private MenuButton backButton;
     private String message;
     private int messageColor;
     private float scroll;
-    private int px;
-    private int py;
-    private int pw;
-    private int ph;
+    private boolean draggingVolume;
+    private float px;
+    private float py;
+    private float pw;
+    private float ph;
 
     public MusicScreen(GuiScreen parent) {
         this.parent = parent;
@@ -43,135 +44,158 @@ public final class MusicScreen extends GuiScreen {
     @Override
     public void initGui() {
         Keyboard.enableRepeatEvents(true);
-        pw = Math.min(420, width - 30);
-        ph = Math.min(290, height - 30);
-        px = (width - pw) / 2;
-        py = (height - ph) / 2;
-        urlField = new GuiTextField(1, fontRendererObj, px + 10, py + 32, pw - 90, 14);
-        urlField.setMaxStringLength(512);
-        titleField = new GuiTextField(2, fontRendererObj, px + 10, py + 52, pw - 90, 14);
-        titleField.setMaxStringLength(64);
-        urlField.setFocused(true);
-        addButton = new MenuButton("Add", this::addTrack).bounds(px + pw - 72, py + 32, 62, 34).primary();
-        backButton = new MenuButton("Done", () -> mc.displayGuiScreen(parent)).bounds(px + pw - 72, py + ph - 26, 62, 18);
-        widget.setPosition(px + 10, py + ph - MusicWidget.HEIGHT - 8);
+        pw = Math.min(400, width - 24);
+        ph = Math.min(280, height - 24);
+        px = (width - pw) / 2f;
+        py = (height - ph) / 2f;
+        String url = urlField == null ? "" : urlField.text;
+        String title = titleField == null ? "" : titleField.text;
+        urlField = new Widgets.TextInput(px + 14, py + 40, pw - 28 - 66, 16, "https://example.com/track.mp3", 512);
+        titleField = new Widgets.TextInput(px + 14, py + 60, pw - 28 - 66, 16, "Title (optional)", 64);
+        urlField.text = url;
+        titleField.text = title;
+        urlField.focused = true;
+        addButton = new MenuButton("Add", this::addTrack).bounds(px + pw - 14 - 58, py + 40, 58, 36).primary();
+        widget.setPosition(px + 14, py + ph - MusicWidget.HEIGHT - 14);
     }
 
     private void addTrack() {
-        String url = urlField.getText().trim();
-        if (player().add(url, titleField.getText())) {
-            message = "Added " + Track.titleFromUrl(url);
-            messageColor = 0xFF55FF88;
-            urlField.setText("");
-            titleField.setText("");
+        String url = urlField.text.trim();
+        if (player().add(url, titleField.text)) {
+            message = "Added “" + Track.titleFromUrl(url) + "”";
+            messageColor = 0xFF5FD39A;
+            urlField.text = "";
+            titleField.text = "";
         } else {
-            message = "Enter a valid http(s) URL to an MP3/WAV file or MP3 radio stream";
-            messageColor = Theme.DANGER;
+            message = "That doesn't look like an http(s) link to an MP3/WAV file or MP3 stream";
+            messageColor = 0xFFFF7A7F;
         }
     }
 
-    private int listTop() {
-        return py + 84;
+    private float listTop() {
+        return py + 100;
     }
 
-    private int listHeight() {
-        return ph - 84 - MusicWidget.HEIGHT - 16;
+    private float listHeight() {
+        return ph - 100 - MusicWidget.HEIGHT - 26;
+    }
+
+    private float volumeX() {
+        return px + 14 + MusicWidget.WIDTH + 18;
+    }
+
+    private float volumeWidth() {
+        return px + pw - 14 - volumeX() - 22;
+    }
+
+    private float volumeY() {
+        return py + ph - 14 - MusicWidget.HEIGHT / 2f;
     }
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         if (mc.theWorld == null) {
-            MenuBackground.get().draw(width, height, mouseX, mouseY);
+            Backdrop.drawDimmed(width, height);
         } else {
-            RenderUtil.rect(0, 0, width, height, Theme.OVERLAY);
+            Shapes.rect(0, 0, width, height, 0xA0000000);
         }
-        RenderUtil.rect(px, py, px + pw, py + ph, Theme.PANEL);
-        RenderUtil.outline(px - 1, py - 1, px + pw + 1, py + ph + 1, Theme.BORDER);
-        RenderUtil.text("♫ Music", px + 10, py + 10, Theme.ACCENT, true);
-        RenderUtil.text("MP3 / WAV files and MP3 radio streams", px + 60, py + 10, Theme.TEXT_DIM, false);
+        Widgets.panel(px, py, pw, ph);
+        Ui.TITLE.draw("Music", px + 14, py + 12, 0xFFFFFFFF);
+        Ui.SMALL.draw("MP3 / WAV files and MP3 radio streams", px + 14 + Ui.TITLE.width("Music") + 8, py + 15, 0x80FFFFFF);
+        Widgets.closeButton(px + pw - 22, py + 10, mouseX, mouseY);
 
-        field(urlField, "https://example.com/song.mp3");
-        field(titleField, "Title (optional)");
+        urlField.draw();
+        titleField.draw();
         addButton.draw(mouseX, mouseY);
         if (message != null) {
-            RenderUtil.text(fontRendererObj.trimStringToWidth(message, pw - 20), px + 10, py + 70, messageColor, false);
+            Ui.SMALL.draw(Ui.ellipsize(Ui.SMALL, message, pw - 200), px + 14, py + 82, messageColor);
         }
 
-        // toggles
         MusicPlayer p = player();
-        int tx = px + pw - 150;
-        RenderUtil.text("Shuffle", tx, py + 70, Theme.TEXT_DIM, false);
-        SettingWidget.drawSwitch(tx + 38, py + 69, p.isShuffle());
-        RenderUtil.text("Autoplay", tx + 68, py + 70, Theme.TEXT_DIM, false);
-        SettingWidget.drawSwitch(tx + 112, py + 69, p.isAutoplay());
+        float tx = px + pw - 14;
+        tx = Widgets.labeledSwitch("Autoplay", tx, py + 81, p.isAutoplay());
+        Widgets.labeledSwitch("Shuffle", tx - 10, py + 81, p.isShuffle());
 
         // playlist
         List<Track> tracks = p.getTracks();
-        int top = listTop();
-        int lh = listHeight();
+        float top = listTop();
+        float lh = listHeight();
+        Shapes.rect(px + 14, top - 4, pw - 28, 0.5f, 0x14FFFFFF);
         scroll = Math.max(0, Math.min(Math.max(0, tracks.size() * ROW - lh), scroll));
-        RenderUtil.scissor(px + 8, top, pw - 16, lh);
-        int y = top - Math.round(scroll);
+        RenderUtil.scissor(px + 10, top, pw - 20, lh);
+        float y = top - scroll;
         if (tracks.isEmpty()) {
-            RenderUtil.centeredText("Your playlist is empty — paste a URL above", px + pw / 2f, top + 20, Theme.TEXT_DIM, false);
+            Ui.BODY.drawCentered("Your playlist is empty", px + pw / 2f, top + lh / 2f - 10, 0x99FFFFFF);
+            Ui.SMALL.drawCentered("Paste a direct link to a song or an internet radio stream above",
+                    px + pw / 2f, top + lh / 2f + 2, 0x66FFFFFF);
         }
+        boolean inList = RenderUtil.hovered(mouseX, mouseY, px, top, pw, lh);
         for (int i = 0; i < tracks.size(); i++) {
-            boolean hover = RenderUtil.hovered(mouseX, mouseY, px + 8, y, pw - 16, ROW - 2)
-                    && RenderUtil.hovered(mouseX, mouseY, px, top, pw, lh);
-            boolean playing = i == p.getCurrentIndex() && p.getState() != MusicPlayer.State.STOPPED;
-            RenderUtil.rect(px + 8, y, px + pw - 8, y + ROW - 2, hover ? Theme.CARD_HOVER : Theme.CARD);
-            if (playing) {
-                RenderUtil.rect(px + 8, y, px + 10, y + ROW - 2, Theme.ACCENT);
+            boolean hover = inList && RenderUtil.hovered(mouseX, mouseY, px + 14, y, pw - 28, ROW - 2);
+            boolean current = i == p.getCurrentIndex() && p.getState() != MusicPlayer.State.STOPPED;
+            if (hover || current) {
+                Shapes.roundedRect(px + 14, y, pw - 28, ROW - 2, 4, current ? 0x288B5CF6 : 0x10FFFFFF);
             }
-            RenderUtil.text((playing ? "♪ " : "") + fontRendererObj.trimStringToWidth(tracks.get(i).getTitle(), pw - 70),
-                    px + 14, y + 5, playing ? Theme.ACCENT : Theme.TEXT, false);
-            boolean xHover = hover && mouseX >= px + pw - 24;
-            RenderUtil.text("✕", px + pw - 20, y + 5, xHover ? Theme.DANGER : Theme.TEXT_DIM, false);
+            Ui.SMALL.drawRight(String.valueOf(i + 1), px + 30, y + 7, current ? Theme.ACCENT : 0x66FFFFFF);
+            Ui.BODY.draw(Ui.ellipsize(Ui.BODY, tracks.get(i).getTitle(), pw - 110), px + 38, y + 5.5f,
+                    current ? 0xFFFFFFFF : 0xD0FFFFFF);
+            if (hover) {
+                boolean removeHover = mouseX >= px + pw - 34;
+                Widgets.cross(px + pw - 28, y + 6, 7, removeHover ? 0xFFFF7A7F : 0x80FFFFFF);
+            }
             y += ROW;
         }
         RenderUtil.endScissor();
 
         widget.draw(mouseX, mouseY);
-        backButton.draw(mouseX, mouseY);
+        // volume
+        float vx = volumeX();
+        float vw = volumeWidth();
+        float vy = volumeY();
+        Ui.LABEL.draw("VOLUME", vx, vy - 12, 0x80FFFFFF, 1.2f);
+        Widgets.slider(vx, vy, vw, p.getVolume());
+        Ui.SMALL.draw(Math.round(p.getVolume() * 100) + "%", vx + vw + 6, vy - 3, 0xB0FFFFFF);
         super.drawScreen(mouseX, mouseY, partialTicks);
-    }
-
-    private void field(GuiTextField f, String placeholder) {
-        RenderUtil.rect(f.xPosition - 2, f.yPosition - 2, f.xPosition + f.width + 2, f.yPosition + f.height,
-                f.isFocused() ? Theme.CARD_HOVER : Theme.CARD);
-        f.setEnableBackgroundDrawing(false);
-        f.drawTextBox();
-        if (f.getText().isEmpty() && !f.isFocused()) {
-            RenderUtil.text(placeholder, f.xPosition, f.yPosition, Theme.TEXT_DIM, false);
-        }
     }
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int button) throws IOException {
-        urlField.mouseClicked(mouseX, mouseY, button);
-        titleField.mouseClicked(mouseX, mouseY, button);
-        if (addButton.click(mouseX, mouseY, button) || backButton.click(mouseX, mouseY, button)
-                || widget.click(mouseX, mouseY, button, this)) {
+        urlField.mouseClicked(mouseX, mouseY);
+        titleField.mouseClicked(mouseX, mouseY);
+        if (button == 0 && RenderUtil.hovered(mouseX, mouseY, px + pw - 24, py + 8, 16, 16)) {
+            MenuButton.playClick();
+            mc.displayGuiScreen(parent);
+            return;
+        }
+        if (addButton.click(mouseX, mouseY, button) || widget.click(mouseX, mouseY, button, this)) {
             return;
         }
         MusicPlayer p = player();
-        int tx = px + pw - 150;
-        if (button == 0 && RenderUtil.hovered(mouseX, mouseY, tx + 38, py + 68, 24, 12)) {
-            p.setShuffle(!p.isShuffle());
-            p.save();
+        if (button == 0 && RenderUtil.hovered(mouseX, mouseY, volumeX() - 3, volumeY() - 5, volumeWidth() + 6, 10)) {
+            draggingVolume = true;
+            mouseClickMove(mouseX, mouseY, button, 0);
             return;
         }
-        if (button == 0 && RenderUtil.hovered(mouseX, mouseY, tx + 112, py + 68, 24, 12)) {
+        float tx = px + pw - 14;
+        float autoplayX = tx - Widgets.labeledSwitchWidth("Autoplay");
+        float shuffleRight = autoplayX - 10;
+        if (button == 0 && RenderUtil.hovered(mouseX, mouseY, autoplayX, py + 78, tx - autoplayX, 14)) {
             p.setAutoplay(!p.isAutoplay());
             p.save();
             return;
         }
-        if (!RenderUtil.hovered(mouseX, mouseY, px + 8, listTop(), pw - 16, listHeight())) {
+        if (button == 0 && RenderUtil.hovered(mouseX, mouseY, shuffleRight - Widgets.labeledSwitchWidth("Shuffle"), py + 78,
+                Widgets.labeledSwitchWidth("Shuffle"), 14)) {
+            p.setShuffle(!p.isShuffle());
+            p.save();
+            return;
+        }
+        if (button != 0 || !RenderUtil.hovered(mouseX, mouseY, px + 14, listTop(), pw - 28, listHeight())) {
             return;
         }
         int index = (int) ((mouseY - listTop() + scroll) / ROW);
-        if (index >= 0 && index < p.getTracks().size() && button == 0) {
-            if (mouseX >= px + pw - 24) {
+        if (index >= 0 && index < p.getTracks().size()) {
+            if (mouseX >= px + pw - 34) {
                 p.remove(index);
             } else {
                 p.play(index);
@@ -181,12 +205,17 @@ public final class MusicScreen extends GuiScreen {
 
     @Override
     protected void mouseClickMove(int mouseX, int mouseY, int button, long time) {
-        widget.drag(mouseX);
+        if (draggingVolume) {
+            player().setVolume((mouseX - volumeX()) / volumeWidth());
+        }
     }
 
     @Override
     protected void mouseReleased(int mouseX, int mouseY, int state) {
-        widget.release();
+        if (draggingVolume) {
+            draggingVolume = false;
+            player().save();
+        }
     }
 
     @Override
@@ -204,24 +233,18 @@ public final class MusicScreen extends GuiScreen {
             mc.displayGuiScreen(parent);
             return;
         }
-        if (keyCode == Keyboard.KEY_RETURN && urlField.isFocused()) {
+        if (keyCode == Keyboard.KEY_RETURN && (urlField.focused || titleField.focused)) {
             addTrack();
             return;
         }
         if (keyCode == Keyboard.KEY_TAB) {
-            boolean url = urlField.isFocused();
-            urlField.setFocused(!url);
-            titleField.setFocused(url);
+            boolean url = urlField.focused;
+            urlField.focused = !url;
+            titleField.focused = url;
             return;
         }
-        urlField.textboxKeyTyped(typedChar, keyCode);
-        titleField.textboxKeyTyped(typedChar, keyCode);
-    }
-
-    @Override
-    public void updateScreen() {
-        urlField.updateCursorCounter();
-        titleField.updateCursorCounter();
+        urlField.keyTyped(typedChar, keyCode);
+        titleField.keyTyped(typedChar, keyCode);
     }
 
     @Override

@@ -116,6 +116,25 @@ Mixins in `dev.larpclient.mixin` are discovered automatically, so you don't need
 `mixins.larpclient.json`. Injectors default to `require = 1`, so a broken target fails loudly at
 startup instead of silently doing nothing. Name injector methods `larp$<purpose>` to avoid clashes.
 
+### Rendering & design system
+
+LARP's menus share a small design system. They keep the vanilla look only for the in-game HUD,
+which PvP players expect.
+
+- `render/LarpFont` is anti-aliased Inter, rasterised into a glyph atlas at *size × GUI scale*,
+  so text maps 1:1 to physical pixels at every GUI scale. `render/Ui` holds the type presets.
+- `render/Shapes` draws rounded rects, outlines, circles, gradients, lines and media icons. Everything
+  is built from plain `GL_TRIANGLES` with culling off, because polygon/fan modes proved unreliable
+  in Minecraft's GL state.
+- `render/Panorama` draws the vanilla cubemap into a quarter-resolution framebuffer, upscaled with a
+  4-tap filter. `gui/menu/Backdrop` adds legibility scrims.
+- `gui/Widgets` provides the panel, toggle, slider, text input and close button.
+
+**Screenshot tour.** `./gradlew :mod:runGame -PlarpTour [-PlarpTourScale=2] [-PlarpTourWidth=1280
+-PlarpTourHeight=720] [-PlarpTourMouse=x,y]` renders every LARP screen offscreen at a fixed size
+into `mod/run/screenshots/larp-tour-N.png`, then quits. It doesn't depend on your window manager.
+Use it to review UI changes. The README images come from it.
+
 ### Music player
 
 `MusicPlayer` streams on one daemon thread per track: HTTP (manual redirects) → `AudioDecoder`

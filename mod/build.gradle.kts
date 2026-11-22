@@ -172,6 +172,14 @@ tasks.register<JavaExec>("runGame") {
         net.fabricmc.loom.configuration.ide.RunConfig.runConfig(project, loom.runConfigs.getByName("client"))
     }
     mainClass.set(runConfig.map { it.mainClass })
+    // ./gradlew :mod:runGame -PlarpTour [-PlarpTourScale=2]  → screenshots of every LARP screen
+    if (project.hasProperty("larpTour")) {
+        systemProperty("larp.screenshotTour", "true")
+        systemProperty("larp.tourScale", project.findProperty("larpTourScale") ?: "2")
+        systemProperty("larp.tourWidth", project.findProperty("larpTourWidth") ?: "1280")
+        systemProperty("larp.tourHeight", project.findProperty("larpTourHeight") ?: "720")
+        systemProperty("larp.tourMouse", project.findProperty("larpTourMouse") ?: "")
+    }
     doFirst {
         workingDir.mkdirs()
         val config = runConfig.get()

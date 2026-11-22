@@ -43,7 +43,7 @@ public final class HudEditorScreen extends GuiScreen {
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         if (mc.theWorld == null) {
-            dev.larpclient.core.gui.menu.MenuBackground.get().draw(width, height, mouseX, mouseY);
+            dev.larpclient.core.gui.menu.Backdrop.drawDimmed(width, height);
         }
         RenderUtil.rect(0, 0, width, height, 0x40000000);
         if (dragging != null) {
@@ -70,11 +70,15 @@ public final class HudEditorScreen extends GuiScreen {
                     hud == hovered ? Theme.ACCENT : 0x60FFFFFF);
             HudRenderer.draw(hud, width, height, partialTicks, true);
         }
-        String hint = "Drag to move • Scroll to resize • Right-click for settings • ESC to go back";
-        RenderUtil.centeredText(hint, width / 2f, height - 14, Theme.TEXT_DIM, true);
+        String hint = "Drag to move  \u00B7  Scroll to resize  \u00B7  Right-click for options  \u00B7  Shift: no snapping  \u00B7  Esc to finish";
+        float hw = dev.larpclient.core.render.Ui.SMALL.width(hint) + 20;
+        dev.larpclient.core.render.Shapes.roundedRect(width / 2f - hw / 2, height - 22, hw, 14, 7, 0xC0101014);
+        dev.larpclient.core.render.Ui.SMALL.drawCentered(hint, width / 2f, height - 19, 0xC0FFFFFF);
         if (hovered != null && dragging == null) {
-            RenderUtil.text(hovered.getName() + String.format(" (%.0f%%)", hovered.getScale() * 100),
-                    mouseX + 8, mouseY - 10, Theme.TEXT, true);
+            String tip = hovered.getName() + String.format("  %.0f%%", hovered.getScale() * 100);
+            float tw = dev.larpclient.core.render.Ui.SMALL.width(tip) + 10;
+            dev.larpclient.core.render.Shapes.roundedRect(mouseX + 8, mouseY - 14, tw, 12, 4, 0xE0101014);
+            dev.larpclient.core.render.Ui.SMALL.draw(tip, mouseX + 13, mouseY - 11.5f, 0xFFFFFFFF);
         }
         super.drawScreen(mouseX, mouseY, partialTicks);
     }

@@ -6,7 +6,7 @@ import net.minecraft.client.network.NetworkPlayerInfo;
 
 public final class PingHud extends TextHudModule {
     public PingHud() {
-        super("Ping", "Shows your latency to the server", 0.0, 0.14);
+        super("Ping", "Shows your latency to the server", 0.0, 0.3);
     }
 
     @Override

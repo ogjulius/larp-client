@@ -11,6 +11,9 @@ import dev.larpclient.core.setting.NumberSetting;
  * {@code 1} = right/bottom edge) so layouts survive window resizes and GUI-scale changes.
  */
 public abstract class HudModule extends Module {
+    /** Gap kept between HUD elements and the screen edges, in GUI pixels. */
+    public static final float EDGE_MARGIN = 4;
+
     private final NumberSetting posX;
     private final NumberSetting posY;
     private final NumberSetting scale;
@@ -60,19 +63,19 @@ public abstract class HudModule extends Module {
 
     /** Screen-space X of the element's left edge. */
     public float getScreenX(int screenWidth) {
-        return (float) (posX.get() * Math.max(0, screenWidth - getScaledWidth()));
+        return EDGE_MARGIN + (float) (posX.get() * Math.max(0, screenWidth - getScaledWidth() - EDGE_MARGIN * 2));
     }
 
     /** Screen-space Y of the element's top edge. */
     public float getScreenY(int screenHeight) {
-        return (float) (posY.get() * Math.max(0, screenHeight - getScaledHeight()));
+        return EDGE_MARGIN + (float) (posY.get() * Math.max(0, screenHeight - getScaledHeight() - EDGE_MARGIN * 2));
     }
 
     /** Move the element so its left/top edge sits at the given screen coordinates. */
     public void setScreenPosition(float x, float y, int screenWidth, int screenHeight) {
-        float freeX = Math.max(1, screenWidth - getScaledWidth());
-        float freeY = Math.max(1, screenHeight - getScaledHeight());
-        posX.set((double) Math.max(0, Math.min(1, x / freeX)));
-        posY.set((double) Math.max(0, Math.min(1, y / freeY)));
+        float freeX = Math.max(1, screenWidth - getScaledWidth() - EDGE_MARGIN * 2);
+        float freeY = Math.max(1, screenHeight - getScaledHeight() - EDGE_MARGIN * 2);
+        posX.set((double) Math.max(0, Math.min(1, (x - EDGE_MARGIN) / freeX)));
+        posY.set((double) Math.max(0, Math.min(1, (y - EDGE_MARGIN) / freeY)));
     }
 }

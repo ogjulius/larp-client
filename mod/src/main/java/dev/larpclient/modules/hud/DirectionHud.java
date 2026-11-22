@@ -13,7 +13,7 @@ public final class DirectionHud extends TextHudModule {
     private final BooleanSetting showYaw = setting(new BooleanSetting("Show Yaw", "Append the exact yaw angle", false));
 
     public DirectionHud() {
-        super("Direction", "Shows which way you are facing", 0.0, 0.105);
+        super("Direction", "Shows which way you are facing", 0.0, 0.225);
     }
 
     /** Eight-way compass name for a Minecraft yaw (0 = south, 90 = west). */

@@ -7,6 +7,15 @@ A lightweight, Linux-first **PvP client for Minecraft 1.8.9**. It comes in two p
 - **LARP mod** is a Forge 1.8.9 mod with a custom main menu, a music player, HUD mods, zoom, freelook and
   performance tweaks.
 
+<p align="center">
+  <img src="docs/images/launcher-home.png" width="49%" alt="LARP Launcher">
+  <img src="docs/images/menu.png" width="49%" alt="LARP main menu">
+</p>
+<p align="center">
+  <img src="docs/images/mod-menu.png" width="49%" alt="Mod menu">
+  <img src="docs/images/music.png" width="49%" alt="Music player">
+</p>
+
 > LARP Client only provides **legitimate cosmetic, informational and performance features**.
 > It does not and will not contain combat cheats (killaura, reach, velocity, autoclicker, …).
 > Features that specific servers ask clients not to provide (e.g. Freelook on Hypixel) are

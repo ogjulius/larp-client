@@ -1,40 +1,48 @@
 package dev.larpclient.core.gui;
 
 import dev.larpclient.LarpClient;
-import dev.larpclient.Reference;
-import dev.larpclient.core.gui.menu.MenuBackground;
+import dev.larpclient.core.gui.menu.Backdrop;
+import dev.larpclient.core.gui.menu.MenuButton;
 import dev.larpclient.core.gui.menu.MusicScreen;
 import dev.larpclient.core.module.Category;
 import dev.larpclient.core.module.Module;
+import dev.larpclient.core.render.Shapes;
+import dev.larpclient.core.render.Ui;
 import dev.larpclient.core.setting.Setting;
+import dev.larpclient.core.util.Animation;
 import dev.larpclient.core.util.RenderUtil;
 import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.client.gui.GuiTextField;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /** Main LARP menu: browse, toggle and configure modules. Opened with Right Shift. */
 public final class ModMenuScreen extends GuiScreen {
-    private static final int SIDEBAR_WIDTH = 96;
-    private static final int HEADER = 28;
-    private static final int ROW = 30;
+    private static final int SIDEBAR = 112;
+    private static final int HEADER = 36;
+    private static final int CARD_H = 44;
+    private static final int GAP = 6;
     private static Category lastCategory = Category.HUD;
 
     private Category category = lastCategory;
     private Module selected;
     private final List<SettingWidget<?>> widgets = new ArrayList<>();
-    private GuiTextField search;
+    private final Map<Module, Animation> knobs = new HashMap<>();
+    private Widgets.TextInput search;
+    private MenuButton editHud;
+    private MenuButton music;
     private float scroll;
     private float targetScroll;
-    private int panelX;
-    private int panelY;
-    private int panelW;
-    private int panelH;
+    private float px;
+    private float py;
+    private float pw;
+    private float ph;
 
     public ModMenuScreen() {
     }
@@ -47,37 +55,47 @@ public final class ModMenuScreen extends GuiScreen {
     @Override
     public void initGui() {
         Keyboard.enableRepeatEvents(true);
-        panelW = Math.min(460, width - 30);
-        panelH = Math.min(300, height - 30);
-        panelX = (width - panelW) / 2;
-        panelY = (height - panelH) / 2;
-        String previous = search == null ? "" : search.getText();
-        search = new GuiTextField(0, fontRendererObj, panelX + SIDEBAR_WIDTH + 8, panelY + 8, 120, 12);
-        search.setMaxStringLength(32);
-        search.setEnableBackgroundDrawing(false);
-        search.setText(previous);
+        pw = Math.min(470, width - 24);
+        ph = Math.min(300, height - 24);
+        px = Math.round((width - pw) / 2f);
+        py = Math.round((height - ph) / 2f);
+        String previous = search == null ? "" : search.text;
+        search = new Widgets.TextInput(px + pw - 12 - 120, py + 11, 120, 15, "Search modules", 32);
+        search.text = previous;
+        editHud = new MenuButton("Edit HUD Layout", () -> mc.displayGuiScreen(new HudEditorScreen()))
+                .bounds(px + 10, py + ph - 30, SIDEBAR - 20, 20).primary();
+        music = new MenuButton("Music", () -> mc.displayGuiScreen(new MusicScreen(this)))
+                .bounds(px + 10, py + ph - 54, SIDEBAR - 20, 20);
     }
 
-    // ------------------------------------------------------------------ layout helpers
+    // ------------------------------------------------------------------ layout
 
-    private int contentX() {
-        return panelX + SIDEBAR_WIDTH + 8;
+    private float contentX() {
+        return px + SIDEBAR + 12;
     }
 
-    private int contentY() {
-        return panelY + HEADER;
+    private float contentY() {
+        return py + HEADER + 4;
     }
 
-    private int contentW() {
-        return panelW - SIDEBAR_WIDTH - 16;
+    private float contentW() {
+        return pw - SIDEBAR - 24;
     }
 
-    private int contentH() {
-        return panelH - HEADER - 8;
+    private float contentH() {
+        return ph - HEADER - 12;
+    }
+
+    private int columns() {
+        return contentW() >= 300 ? 2 : 1;
+    }
+
+    private float cardW() {
+        return (contentW() - GAP * (columns() - 1)) / columns();
     }
 
     private List<Module> visibleModules() {
-        String query = search.getText().trim().toLowerCase(Locale.ROOT);
+        String query = search.text.trim().toLowerCase(Locale.ROOT);
         List<Module> result = new ArrayList<>();
         for (Module module : LarpClient.get().modules().getModules()) {
             if (query.isEmpty() ? module.getCategory() == category
@@ -99,11 +117,12 @@ public final class ModMenuScreen extends GuiScreen {
         scroll = targetScroll = 0;
     }
 
-    private int contentHeight() {
+    private float contentHeight() {
         if (selected == null) {
-            return visibleModules().size() * ROW;
+            int rows = (visibleModules().size() + columns() - 1) / columns();
+            return rows * (CARD_H + GAP);
         }
-        int h = 24;
+        float h = 30;
         for (SettingWidget<?> widget : widgets) {
             if (widget.getSetting().isVisible()) {
                 h += widget.getHeight();
@@ -117,100 +136,131 @@ public final class ModMenuScreen extends GuiScreen {
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         if (mc.theWorld == null) {
-            MenuBackground.get().draw(width, height, mouseX, mouseY);
+            Backdrop.drawDimmed(width, height);
         } else {
-            RenderUtil.rect(0, 0, width, height, Theme.OVERLAY);
+            Shapes.rect(0, 0, width, height, 0x80000000);
         }
-        RenderUtil.rect(panelX, panelY, panelX + panelW, panelY + panelH, Theme.PANEL);
-        RenderUtil.outline(panelX - 1, panelY - 1, panelX + panelW + 1, panelY + panelH + 1, Theme.BORDER);
+        Widgets.panel(px, py, pw, ph);
         drawSidebar(mouseX, mouseY);
 
-        // header: search box
-        RenderUtil.rect(contentX() - 2, panelY + 5, contentX() + 124, panelY + 19, Theme.CARD);
-        if (search.getText().isEmpty() && !search.isFocused()) {
-            RenderUtil.text("Search modules...", contentX(), panelY + 8, Theme.TEXT_DIM, false);
-        }
-        search.drawTextBox();
-        String title = selected == null ? (search.getText().isEmpty() ? category.getDisplayName() : "Search") : selected.getName();
-        RenderUtil.text(title, panelX + panelW - 8 - fontRendererObj.getStringWidth(title), panelY + 8, Theme.TEXT, false);
-
-        // scrolling content
-        int maxScroll = Math.max(0, contentHeight() - contentH());
-        targetScroll = Math.max(0, Math.min(maxScroll, targetScroll));
-        scroll += (targetScroll - scroll) * Math.min(1, partialTicks * 0.5f + 0.3f);
-        RenderUtil.scissor(contentX(), contentY(), contentW(), contentH());
+        String title = selected != null ? "" : search.text.isEmpty() ? category.getDisplayName() : "Search results";
+        Ui.TITLE.draw(title, contentX(), py + 13, 0xFFFFFFFF);
         if (selected == null) {
-            drawModuleList(mouseX, mouseY);
+            search.draw();
+        }
+
+        float max = Math.max(0, contentHeight() - contentH());
+        targetScroll = Math.max(0, Math.min(max, targetScroll));
+        scroll += (targetScroll - scroll) * 0.35f;
+        RenderUtil.scissor(contentX() - 2, contentY(), contentW() + 4, contentH());
+        if (selected == null) {
+            drawModules(mouseX, mouseY);
         } else {
             drawSettings(mouseX, mouseY);
         }
         RenderUtil.endScissor();
+        if (selected != null) {
+            drawSettingsHeader(mouseX, mouseY);
+        }
+        if (max > 0 && scroll < max - 1) {
+            Shapes.verticalGradient(contentX() - 2, py + ph - 26, contentW() + 4, 14, 0x00121217, 0xF2121217);
+        }
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
     private void drawSidebar(int mouseX, int mouseY) {
-        RenderUtil.rect(panelX, panelY, panelX + SIDEBAR_WIDTH, panelY + panelH, Theme.SIDEBAR);
-        RenderUtil.text("LARP", panelX + 10, panelY + 9, Theme.ACCENT, true);
-        RenderUtil.text("Client", panelX + 10 + fontRendererObj.getStringWidth("LARP "), panelY + 9, Theme.TEXT, true);
-        int y = panelY + HEADER + 4;
+        Shapes.rect(px + SIDEBAR, py + 10, 0.5f, ph - 20, 0x14FFFFFF);
+        Ui.TITLE.draw("LARP", px + 14, py + 12, 0xFFFFFFFF);
+        Ui.LABEL.draw("CLIENT", px + 15 + Ui.TITLE.width("LARP") + 4, py + 15.5f, 0xFFB9A4FF, 1.6f);
+
+        float y = py + HEADER + 6;
+        Ui.LABEL.draw("CATEGORIES", px + 14, y, 0x66FFFFFF, 1.2f);
+        y += 12;
         for (Category c : Category.values()) {
-            boolean active = c == category && search.getText().isEmpty();
-            boolean hover = RenderUtil.hovered(mouseX, mouseY, panelX, y, SIDEBAR_WIDTH, 18);
-            if (active) {
-                RenderUtil.rect(panelX, y, panelX + 2, y + 18, Theme.ACCENT);
-            }
+            boolean active = c == category && search.text.isEmpty() && selected == null
+                    || selected != null && selected.getCategory() == c;
+            boolean hover = RenderUtil.hovered(mouseX, mouseY, px + 8, y, SIDEBAR - 16, 18);
             if (active || hover) {
-                RenderUtil.rect(panelX + 2, y, panelX + SIDEBAR_WIDTH, y + 18, Theme.CARD);
+                Shapes.roundedRect(px + 8, y, SIDEBAR - 16, 18, 4, active ? 0x1AFFFFFF : 0x0CFFFFFF);
             }
-            RenderUtil.text(c.getDisplayName(), panelX + 10, y + 5, active ? Theme.TEXT : Theme.TEXT_DIM, false);
+            if (active) {
+                Shapes.roundedRect(px + 8, y + 5, 2, 8, 1, Theme.ACCENT);
+            }
+            Ui.BODY_STRONG.draw(c.getDisplayName(), px + 16, y + 5, active ? 0xFFFFFFFF : 0xA0FFFFFF);
+            int enabled = 0;
+            List<Module> list = LarpClient.get().modules().getModules(c);
+            for (Module m : list) {
+                if (m.isEnabled()) {
+                    enabled++;
+                }
+            }
+            Ui.SMALL.drawRight(enabled + "/" + list.size(), px + SIDEBAR - 14, y + 5.5f, 0x66FFFFFF);
             y += 20;
         }
-        int by = panelY + panelH - 26;
-        boolean hover = RenderUtil.hovered(mouseX, mouseY, panelX + 6, by, SIDEBAR_WIDTH - 12, 18);
-        RenderUtil.rect(panelX + 6, by, panelX + SIDEBAR_WIDTH - 6, by + 18, hover ? Theme.ACCENT : Theme.ACCENT_DIM);
-        RenderUtil.centeredText("Edit HUD", panelX + SIDEBAR_WIDTH / 2f, by + 5, Theme.TEXT, false);
-        int my = by - 22;
-        boolean musicHover = RenderUtil.hovered(mouseX, mouseY, panelX + 6, my, SIDEBAR_WIDTH - 12, 18);
-        RenderUtil.rect(panelX + 6, my, panelX + SIDEBAR_WIDTH - 6, my + 18, musicHover ? Theme.CARD_HOVER : Theme.CARD);
-        RenderUtil.centeredText("\u266B Music", panelX + SIDEBAR_WIDTH / 2f, my + 5, Theme.TEXT, false);
-        RenderUtil.text("v" + Reference.VERSION, panelX + 8, my - 12, Theme.TEXT_DIM, false);
+        music.draw(mouseX, mouseY);
+        editHud.draw(mouseX, mouseY);
     }
 
-    private void drawModuleList(int mouseX, int mouseY) {
-        int y = contentY() - Math.round(scroll);
+    private void drawModules(int mouseX, int mouseY) {
         boolean inContent = RenderUtil.hovered(mouseX, mouseY, contentX(), contentY(), contentW(), contentH());
-        for (Module module : visibleModules()) {
-            boolean hover = inContent && RenderUtil.hovered(mouseX, mouseY, contentX(), y, contentW(), ROW - 3);
-            RenderUtil.rect(contentX(), y, contentX() + contentW(), y + ROW - 3, hover ? Theme.CARD_HOVER : Theme.CARD);
-            if (module.isEnabled()) {
-                RenderUtil.rect(contentX(), y, contentX() + 2, y + ROW - 3, Theme.ACCENT);
-            }
-            RenderUtil.text(module.getName(), contentX() + 8, y + 5, Theme.TEXT, false);
+        List<Module> modules = visibleModules();
+        long now = System.currentTimeMillis();
+        for (int i = 0; i < modules.size(); i++) {
+            Module module = modules.get(i);
+            float cx = contentX() + (i % columns()) * (cardW() + GAP);
+            float cy = contentY() + (i / columns()) * (CARD_H + GAP) - scroll;
+            boolean hover = inContent && RenderUtil.hovered(mouseX, mouseY, cx, cy, cardW(), CARD_H);
+            Shapes.roundedRect(cx, cy, cardW(), CARD_H, 5, hover ? 0x14FFFFFF : 0x0AFFFFFF);
+            Shapes.roundedOutline(cx, cy, cardW(), CARD_H, 5, 0.5f, module.isEnabled() ? 0x608B5CF6 : 0x10FFFFFF);
+
+            Ui.BODY_STRONG.draw(Ui.ellipsize(Ui.BODY_STRONG, module.getName(), cardW() - 40), cx + 9, cy + 8, 0xFFFFFFFF);
             String blocked = module.blockedReason();
             String sub = blocked != null ? blocked : module.getDescription();
-            RenderUtil.text(fontRendererObj.trimStringToWidth(sub, contentW() - 70), contentX() + 8, y + 16,
-                    blocked != null ? Theme.DANGER : Theme.TEXT_DIM, false);
-            int right = contentX() + contentW();
-            SettingWidget.drawSwitch(right - 30, y + 8, module.isEnabled());
-            boolean gearHover = inContent && RenderUtil.hovered(mouseX, mouseY, right - 50, y, 18, ROW - 3);
-            RenderUtil.text("⚙", right - 46, y + 9, gearHover ? Theme.ACCENT : Theme.TEXT_DIM, false);
-            y += ROW;
+            Ui.SMALL.draw(Ui.ellipsize(Ui.SMALL, sub, cardW() - 18), cx + 9, cy + 20, blocked != null ? 0xFFFF7A7F : 0x80FFFFFF);
+
+            Animation knob = knobs.computeIfAbsent(module, m -> new Animation(m.isEnabled() ? 1 : 0));
+            knob.setTarget(module.isEnabled() ? 1 : 0);
+            float k = (float) knob.update(now, 0.3);
+            float sx = cx + cardW() - 27;
+            float sy = cy + 7;
+            Shapes.roundedRect(sx, sy, 18, 10, 5, RenderUtil.blend(0x30FFFFFF, Theme.ACCENT, k));
+            Shapes.circle(sx + 5 + 8 * k, sy + 5, 3.6f, 0xFFFFFFFF);
+
+            boolean optionsHover = hover && RenderUtil.hovered(mouseX, mouseY, cx + 4, cy + CARD_H - 13, 50, 12);
+            Ui.SMALL.draw("Options", cx + 9, cy + CARD_H - 11, optionsHover ? Theme.ACCENT : 0x99B9A4FF);
         }
+        if (modules.isEmpty()) {
+            Ui.BODY.drawCentered("No modules match “" + search.text + "”", contentX() + contentW() / 2f,
+                    contentY() + 40, 0x80FFFFFF);
+        }
+    }
+
+    private void drawSettingsHeader(int mouseX, int mouseY) {
+        boolean backHover = RenderUtil.hovered(mouseX, mouseY, contentX() - 4, py + 9, 18, 18);
+        if (backHover) {
+            Shapes.circle(contentX() + 3, py + 18, 8, 0x14FFFFFF);
+        }
+        int arrow = backHover ? 0xFFFFFFFF : 0xA0FFFFFF;
+        Shapes.line(contentX() + 5, py + 14, contentX() + 1, py + 18, 1.3f, arrow);
+        Shapes.line(contentX() + 1, py + 18, contentX() + 5, py + 22, 1.3f, arrow);
+        Ui.TITLE.draw(selected.getName(), contentX() + 14, py + 13, 0xFFFFFFFF);
+        float right = px + pw - 12;
+        Widgets.toggle(right - 18, py + 14, selected.isEnabled());
+        Ui.SMALL.drawRight(selected.isEnabled() ? "Enabled" : "Disabled", right - 24, py + 15.5f,
+                selected.isEnabled() ? 0xFFB9A4FF : 0x80FFFFFF);
     }
 
     private void drawSettings(int mouseX, int mouseY) {
-        int y = contentY() - Math.round(scroll);
-        boolean backHover = RenderUtil.hovered(mouseX, mouseY, contentX(), y, 60, 16);
-        RenderUtil.text("◀ Back", contentX() + 2, y + 4, backHover ? Theme.ACCENT : Theme.TEXT_DIM, false);
-        RenderUtil.text(fontRendererObj.trimStringToWidth(selected.getDescription(), contentW() - 70),
-                contentX() + 60, y + 4, Theme.TEXT_DIM, false);
-        y += 24;
+        float y = contentY() - scroll;
+
+        Ui.SMALL.draw(Ui.ellipsize(Ui.SMALL, selected.getDescription(), contentW()), contentX(), y + 4, 0x80FFFFFF);
+        y += 22;
         boolean inContent = RenderUtil.hovered(mouseX, mouseY, contentX(), contentY(), contentW(), contentH());
         for (SettingWidget<?> widget : widgets) {
             if (!widget.getSetting().isVisible()) {
                 continue;
             }
-            widget.layout(contentX(), y, contentW());
+            widget.layout((int) contentX(), (int) y, (int) contentW());
             widget.draw(inContent ? mouseX : -1, inContent ? mouseY : -1);
             y += widget.getHeight();
         }
@@ -220,51 +270,55 @@ public final class ModMenuScreen extends GuiScreen {
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int button) throws IOException {
-        search.mouseClicked(mouseX, mouseY, button);
-        // sidebar
-        int y = panelY + HEADER + 4;
+        if (selected == null) {
+            search.mouseClicked(mouseX, mouseY);
+        }
+        float y = py + HEADER + 18;
         for (Category c : Category.values()) {
-            if (button == 0 && RenderUtil.hovered(mouseX, mouseY, panelX, y, SIDEBAR_WIDTH, 18)) {
+            if (button == 0 && RenderUtil.hovered(mouseX, mouseY, px + 8, y, SIDEBAR - 16, 18)) {
                 category = lastCategory = c;
                 selected = null;
-                search.setText("");
+                search.text = "";
                 scroll = targetScroll = 0;
+                MenuButton.playClick();
                 return;
             }
             y += 20;
         }
-        if (button == 0 && RenderUtil.hovered(mouseX, mouseY, panelX + 6, panelY + panelH - 26, SIDEBAR_WIDTH - 12, 18)) {
-            mc.displayGuiScreen(new HudEditorScreen());
+        if (editHud.click(mouseX, mouseY, button) || music.click(mouseX, mouseY, button)) {
             return;
         }
-        if (button == 0 && RenderUtil.hovered(mouseX, mouseY, panelX + 6, panelY + panelH - 48, SIDEBAR_WIDTH - 12, 18)) {
-            mc.displayGuiScreen(new MusicScreen(this));
-            return;
+        if (selected != null) {
+            if (button == 0 && RenderUtil.hovered(mouseX, mouseY, contentX() - 2, py + 9, 16, 18)) {
+                selected = null;
+                scroll = targetScroll = 0;
+                return;
+            }
+            if (button == 0 && RenderUtil.hovered(mouseX, mouseY, px + pw - 32, py + 12, 22, 14)) {
+                selected.toggle();
+                return;
+            }
         }
         if (!RenderUtil.hovered(mouseX, mouseY, contentX(), contentY(), contentW(), contentH())) {
             return;
         }
         if (selected == null) {
-            int rowY = contentY() - Math.round(scroll);
-            int right = contentX() + contentW();
-            for (Module module : visibleModules()) {
-                if (RenderUtil.hovered(mouseX, mouseY, contentX(), rowY, contentW(), ROW - 3)) {
-                    boolean gear = RenderUtil.hovered(mouseX, mouseY, right - 50, rowY, 18, ROW - 3);
-                    if (button == 1 || (button == 0 && gear)) {
-                        openSettings(module);
+            List<Module> modules = visibleModules();
+            for (int i = 0; i < modules.size(); i++) {
+                float cx = contentX() + (i % columns()) * (cardW() + GAP);
+                float cy = contentY() + (i / columns()) * (CARD_H + GAP) - scroll;
+                if (RenderUtil.hovered(mouseX, mouseY, cx, cy, cardW(), CARD_H)) {
+                    boolean options = RenderUtil.hovered(mouseX, mouseY, cx + 4, cy + CARD_H - 13, 50, 12);
+                    if (button == 1 || (button == 0 && options)) {
+                        openSettings(modules.get(i));
                     } else if (button == 0) {
-                        module.toggle();
+                        modules.get(i).toggle();
                     }
+                    MenuButton.playClick();
                     return;
                 }
-                rowY += ROW;
             }
         } else {
-            if (button == 0 && RenderUtil.hovered(mouseX, mouseY, contentX(), contentY() - Math.round(scroll), 60, 16)) {
-                selected = null;
-                scroll = targetScroll = 0;
-                return;
-            }
             for (SettingWidget<?> widget : widgets) {
                 if (widget.getSetting().isVisible()) {
                     widget.mouseClicked(mouseX, mouseY, button);
@@ -292,7 +346,7 @@ public final class ModMenuScreen extends GuiScreen {
         super.handleMouseInput();
         int wheel = Mouse.getEventDWheel();
         if (wheel != 0) {
-            targetScroll -= Integer.signum(wheel) * 24;
+            targetScroll -= Integer.signum(wheel) * 30;
         }
     }
 
@@ -304,27 +358,22 @@ public final class ModMenuScreen extends GuiScreen {
                     return;
                 }
             }
-        }
-        if (search.isFocused()) {
             if (keyCode == Keyboard.KEY_ESCAPE) {
-                search.setFocused(false);
+                selected = null;
+                scroll = targetScroll = 0;
                 return;
             }
-            search.textboxKeyTyped(typedChar, keyCode);
-            selected = null;
-            return;
-        }
-        if (keyCode == Keyboard.KEY_ESCAPE && selected != null) {
-            selected = null;
-            scroll = targetScroll = 0;
-            return;
+        } else if (search.focused) {
+            if (keyCode == Keyboard.KEY_ESCAPE) {
+                search.focused = false;
+                return;
+            }
+            if (search.keyTyped(typedChar, keyCode)) {
+                scroll = targetScroll = 0;
+                return;
+            }
         }
         super.keyTyped(typedChar, keyCode);
-    }
-
-    @Override
-    public void updateScreen() {
-        search.updateCursorCounter();
     }
 
     @Override

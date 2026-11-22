@@ -3,118 +3,142 @@ package dev.larpclient.core.gui.menu;
 import dev.larpclient.Reference;
 import dev.larpclient.core.gui.ModMenuScreen;
 import dev.larpclient.core.gui.Theme;
+import dev.larpclient.core.render.Shapes;
+import dev.larpclient.core.render.Ui;
 import dev.larpclient.core.util.Animation;
 import dev.larpclient.core.util.RenderUtil;
 import net.minecraft.client.gui.GuiMultiplayer;
 import net.minecraft.client.gui.GuiOptions;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiSelectWorld;
-import net.minecraft.client.renderer.GlStateManager;
 import net.minecraftforge.fml.client.GuiModList;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-/** LARP's replacement for the vanilla title screen. */
+/** LARP's title screen: blurred panorama, left-aligned wordmark and navigation. */
 public final class LarpMainMenu extends GuiScreen {
-    private static boolean firstOpen = true;
+    private static long firstOpenedAt = -1;
 
-    private final List<MenuButton> buttons = new ArrayList<>();
+    private final List<NavItem> items = new ArrayList<>();
     private final MusicWidget music = new MusicWidget();
-    private final Animation intro = new Animation(firstOpen ? 0 : 1);
-    private MenuButton forgeMods;
+    private final Animation fade = new Animation(0);
+    private float left;
+    private float top;
+
+    private final class NavItem {
+        final String label;
+        final Runnable action;
+        final boolean muted;
+        final Animation hover = new Animation(0);
+        float y;
+
+        NavItem(String label, Runnable action, boolean muted) {
+            this.label = label;
+            this.action = action;
+            this.muted = muted;
+        }
+
+        boolean hovered(int mouseX, int mouseY) {
+            return RenderUtil.hovered(mouseX, mouseY, left - 6, y - 3, 150, 17);
+        }
+    }
 
     @Override
     public void initGui() {
-        buttons.clear();
-        int cx = width / 2;
-        int top = height / 2 - 8;
-        int bw = 200;
-        buttons.add(new MenuButton("Singleplayer", () -> mc.displayGuiScreen(new GuiSelectWorld(this)))
-                .bounds(cx - bw / 2, top, bw, 22).primary());
-        buttons.add(new MenuButton("Multiplayer", () -> mc.displayGuiScreen(new GuiMultiplayer(this)))
-                .bounds(cx - bw / 2, top + 27, bw, 22).primary());
-        int small = (bw - 10) / 3;
-        buttons.add(new MenuButton("Options", () -> mc.displayGuiScreen(new GuiOptions(this, mc.gameSettings)))
-                .bounds(cx - bw / 2, top + 54, small, 22));
-        buttons.add(new MenuButton("LARP Mods", () -> mc.displayGuiScreen(new ModMenuScreen()))
-                .bounds(cx - bw / 2 + small + 5, top + 54, small, 22));
-        buttons.add(new MenuButton("Quit", () -> mc.shutdown())
-                .bounds(cx - bw / 2 + (small + 5) * 2, top + 54, bw - (small + 5) * 2, 22));
-        forgeMods = new MenuButton("Forge Mods", () -> mc.displayGuiScreen(new GuiModList(this)))
-                .bounds(width - 72, height - 22, 66, 16);
-        music.setPosition(width - MusicWidget.WIDTH - 8, 8);
-        if (firstOpen) {
-            intro.snap(0);
-            intro.setTarget(1);
-            firstOpen = false;
+        if (firstOpenedAt < 0) {
+            firstOpenedAt = System.currentTimeMillis();
         }
+        fade.setTarget(1);
+        items.clear();
+        items.add(new NavItem("Singleplayer", () -> mc.displayGuiScreen(new GuiSelectWorld(this)), false));
+        items.add(new NavItem("Multiplayer", () -> mc.displayGuiScreen(new GuiMultiplayer(this)), false));
+        items.add(new NavItem("LARP Mods", () -> mc.displayGuiScreen(new ModMenuScreen()), false));
+        items.add(new NavItem("Music", () -> mc.displayGuiScreen(new MusicScreen(this)), false));
+        items.add(new NavItem("Settings", () -> mc.displayGuiScreen(new GuiOptions(this, mc.gameSettings)), false));
+        items.add(new NavItem("Forge Mods", () -> mc.displayGuiScreen(new GuiModList(this)), true));
+        items.add(new NavItem("Quit Game", () -> mc.shutdown(), true));
+
+        left = Math.max(24, width * 0.075f);
+        float blockHeight = 66 + items.size() * 18;
+        top = Math.max(16, (height - blockHeight) / 2f - 10);
+        float y = top + 60;
+        for (NavItem item : items) {
+            if (item.muted && !items.get(items.indexOf(item) - 1).muted) {
+                y += 6; // small gap before secondary actions
+            }
+            item.y = y;
+            y += 18;
+        }
+        music.setPosition(width - MusicWidget.WIDTH - 12, height - MusicWidget.HEIGHT - 12);
+    }
+
+    /** 0 → 1 entrance progress for an element appearing {@code delayMs} after first open. */
+    private static float intro(long delayMs) {
+        float p = (System.currentTimeMillis() - firstOpenedAt - delayMs) / 450f;
+        p = Math.max(0, Math.min(1, p));
+        return 1 - (1 - p) * (1 - p) * (1 - p); // ease-out cubic
     }
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        float t = (float) intro.update(System.currentTimeMillis(), 0.06);
-        MenuBackground.get().draw(width, height, mouseX, mouseY);
+        Backdrop.drawMenu(width, height);
 
-        drawLogo(t);
-        for (MenuButton button : buttons) {
-            button.draw(mouseX, mouseY);
+        float logoIn = intro(0);
+        float lx = left - (1 - logoIn) * 8;
+        int logoAlpha = (int) (255 * logoIn) << 24;
+        Ui.DISPLAY.draw("LARP", lx - 1, top, logoAlpha | 0xFFFFFF, -0.6f);
+        Ui.LABEL.draw("CLIENT", lx + 1.5f, top + 35, logoAlpha | 0xB9A4FF, 2.6f);
+
+        long now = System.currentTimeMillis();
+        for (int i = 0; i < items.size(); i++) {
+            NavItem item = items.get(i);
+            float in = intro(120 + i * 45L);
+            if (in <= 0) {
+                continue;
+            }
+            item.hover.setTarget(item.hovered(mouseX, mouseY) ? 1 : 0);
+            float h = (float) item.hover.update(now, 0.28);
+            float x = left + h * 5 - (1 - in) * 10;
+            if (h > 0.01f) {
+                Shapes.roundedRect(left - 6, item.y - 2.5f + (1 - h) * 6, 2, (14) * h, 1, Theme.ACCENT);
+            }
+            int base = item.muted ? 0x8C8C96 : 0xC8C8D2;
+            int color = RenderUtil.blend(0xFF000000 | base, 0xFFFFFFFF, h);
+            int alpha = (int) (((color >>> 24) & 0xFF) * in);
+            Ui.NAV.draw(item.label, x, item.y, (alpha << 24) | (color & 0xFFFFFF));
         }
-        forgeMods.draw(mouseX, mouseY);
-        music.draw(mouseX, mouseY);
-        drawAccount();
 
-        RenderUtil.text(Reference.NAME + " " + Reference.VERSION + " • Minecraft " + Reference.MC_VERSION,
-                6, height - 12, Theme.TEXT_DIM, true);
-        String legal = "Not affiliated with Mojang or Microsoft";
-        RenderUtil.text(legal, width - 78 - fontRendererObj.getStringWidth(legal), height - 18, 0x60FFFFFF, false);
+        float footIn = intro(500);
+        int footAlpha = (int) (0x80 * footIn) << 24;
+        Ui.SMALL.draw("LARP Client " + Reference.VERSION + "   \u00B7   Minecraft " + Reference.MC_VERSION
+                + "   \u00B7   Not affiliated with Mojang or Microsoft", left, height - 16, footAlpha | 0xFFFFFF);
 
-        if (t < 1) {
-            RenderUtil.rect(0, 0, width, height, ((int) ((1 - t) * 255) << 24));
+        drawAccount(intro(300));
+        if (intro(450) > 0) {
+            music.draw(mouseX, mouseY);
+        }
+
+        float f = (float) fade.update(now, 0.08);
+        if (f < 1) {
+            Shapes.rect(0, 0, width, height, (int) ((1 - f) * 255) << 24);
         }
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
-    private void drawLogo(float intro) {
-        float cx = width / 2f;
-        float y = height / 2f - 84 + (1 - intro) * -12;
-        float scale = 5f;
-        String logo = "LARP";
-        GlStateManager.pushMatrix();
-        GlStateManager.translate(cx, y, 0);
-        GlStateManager.scale(scale, scale, 1);
-        float pulse = 0.5f + 0.5f * (float) Math.sin(System.currentTimeMillis() / 900.0);
-        int glow = RenderUtil.blend(0xFF8B5CF6, 0xFFC4B5FD, pulse);
-        float lw = fontRendererObj.getStringWidth(logo);
-        fontRendererObj.drawString(logo, -lw / 2f + 0.6f, 0.6f, 0x60301060, false);
-        fontRendererObj.drawString(logo, -lw / 2f, 0, glow, false);
-        GlStateManager.popMatrix();
-
-        String sub = spaced("CLIENT");
-        RenderUtil.centeredText(sub, cx, y + 50, 0xFFE8E4F5, true);
-        RenderUtil.rect(cx - 40, y + 62, cx + 40, y + 63, 0x608B5CF6);
-    }
-
-    private static String spaced(String text) {
-        StringBuilder sb = new StringBuilder();
-        for (char c : text.toCharArray()) {
-            if (sb.length() > 0) {
-                sb.append("  ");
-            }
-            sb.append(c);
+    private void drawAccount(float in) {
+        if (in <= 0) {
+            return;
         }
-        return sb.toString();
-    }
-
-    private void drawAccount() {
         String name = mc.getSession().getUsername();
-        int w = Math.max(90, fontRendererObj.getStringWidth(name) + 34);
-        RenderUtil.rect(8, 8, 8 + w, 30, 0x90000000);
-        RenderUtil.outline(8, 8, 8 + w, 30, 0x30FFFFFF);
-        RenderUtil.rect(12, 12, 26, 26, Theme.ACCENT);
-        RenderUtil.centeredText(name.isEmpty() ? "?" : name.substring(0, 1).toUpperCase(), 19.5f, 15, Theme.TEXT, true);
-        RenderUtil.text(name, 31, 15, Theme.TEXT, true);
+        float w = Ui.BODY_STRONG.width(name) + 32;
+        float x = width - w - 12;
+        float y = 10;
+        Shapes.roundedRect(x, y, w, 18, 9, (int) (0x70 * in) << 24 | 0x0A0A0E);
+        Shapes.roundedOutline(x, y, w, 18, 9, 0.5f, (int) (0x20 * in) << 24 | 0xFFFFFF);
+        PlayerHead.draw(x + 4, y + 3, 12);
+        Ui.BODY_STRONG.draw(name, x + 21, y + 4.5f, (int) (255 * in) << 24 | 0xFFFFFF);
     }
 
     @Override
@@ -122,22 +146,16 @@ public final class LarpMainMenu extends GuiScreen {
         if (music.click(mouseX, mouseY, button, this)) {
             return;
         }
-        for (MenuButton b : buttons) {
-            if (b.click(mouseX, mouseY, button)) {
+        if (button != 0) {
+            return;
+        }
+        for (NavItem item : items) {
+            if (item.hovered(mouseX, mouseY)) {
+                MenuButton.playClick();
+                item.action.run();
                 return;
             }
         }
-        forgeMods.click(mouseX, mouseY, button);
-    }
-
-    @Override
-    protected void mouseClickMove(int mouseX, int mouseY, int button, long time) {
-        music.drag(mouseX);
-    }
-
-    @Override
-    protected void mouseReleased(int mouseX, int mouseY, int state) {
-        music.release();
     }
 
     @Override

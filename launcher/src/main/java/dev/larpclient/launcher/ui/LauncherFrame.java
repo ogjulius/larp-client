@@ -1,7 +1,5 @@
 package dev.larpclient.launcher.ui;
 
-import dev.larpclient.launcher.Main;
-import dev.larpclient.launcher.auth.Account;
 import dev.larpclient.launcher.auth.AccountStore;
 import dev.larpclient.launcher.config.LauncherSettings;
 import dev.larpclient.launcher.game.GameFiles;
@@ -10,36 +8,38 @@ import dev.larpclient.launcher.util.Platform;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
-import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.util.ArrayList;
+import java.util.List;
 
-/** Main window: custom title bar, sidebar navigation and page cards. */
+/** Main window: icon rail, page cards and overlaid window controls. */
 public final class LauncherFrame extends JFrame {
+    private static final int WIDTH = 1080;
+    private static final int HEIGHT = 680;
+
     final LauncherSettings settings = LauncherSettings.load(Platform.configDir().resolve("launcher.json"));
     final AccountStore accounts = new AccountStore(Platform.configDir().resolve("accounts.json"));
     final GameFiles files = new GameFiles(Platform.dataDir());
 
     private final CardLayout cards = new CardLayout();
     private final JPanel pages = new JPanel(cards);
-    private final Map<String, Components.NavButton> nav = new LinkedHashMap<>();
-    private final JLabel accountName = Components.label("", 13f, Font.BOLD, Palette.TEXT);
-    private final JLabel accountType = Components.label("", 11f, Font.PLAIN, Palette.TEXT_DIM);
+    private final List<NavRail> nav = new ArrayList<>();
 
     final ConsolePanel console = new ConsolePanel(this);
     final HomePanel home = new HomePanel(this);
@@ -58,20 +58,18 @@ public final class LauncherFrame extends JFrame {
         setSize(WIDTH, HEIGHT);
         setResizable(false);
         setLocationRelativeTo(null);
-        setIconImage(Icons.appIcon(64));
+        setIconImage(Icons.appIcon(128));
 
         JPanel root = new JPanel(new BorderLayout());
-        root.setBorder(BorderFactory.createLineBorder(Palette.BORDER));
-        root.add(sidebar(), BorderLayout.WEST);
+        root.setBackground(Palette.BG);
+        root.setBorder(BorderFactory.createLineBorder(new Color(0x23232B)));
+        root.add(rail(), BorderLayout.WEST);
 
-        JPanel main = new JPanel(new BorderLayout());
-        main.add(titleBar(), BorderLayout.NORTH);
         pages.add(home, "Home");
         pages.add(accountsPanel, "Accounts");
         pages.add(settingsPanel, "Settings");
         pages.add(console, "Console");
-        main.add(pages, BorderLayout.CENTER);
-        root.add(main, BorderLayout.CENTER);
+        root.add(new Overlay(pages, windowControls()), BorderLayout.CENTER);
         setContentPane(root);
 
         refreshAccount();
@@ -79,9 +77,10 @@ public final class LauncherFrame extends JFrame {
 
         // Some window managers (e.g. Hyprland with XWayland) ignore the initial size hint. Re-assert
         // the intended size once the window is mapped; floating windows accept client resizes.
-        addWindowListener(new java.awt.event.WindowAdapter() {
+        addWindowListener(new WindowAdapter() {
             @Override
-            public void windowOpened(java.awt.event.WindowEvent e) {
+            public void windowOpened(WindowEvent e) {
+                getRootPane().requestFocusInWindow();
                 new javax.swing.Timer(150, ev -> {
                     if (getWidth() != WIDTH || getHeight() != HEIGHT) {
                         setSize(WIDTH, HEIGHT);
@@ -93,163 +92,161 @@ public final class LauncherFrame extends JFrame {
         });
     }
 
-    private static final int WIDTH = 1060;
-    private static final int HEIGHT = 660;
-
     void show(String page) {
         cards.show(pages, page);
-        nav.forEach((name, button) -> button.setActive(name.equals(page)));
+        // Don't let the first button on a page grab a focus ring.
+        javax.swing.SwingUtilities.invokeLater(() -> getRootPane().requestFocusInWindow());
+        for (NavRail item : nav) {
+            item.setActive(item.getLabel().equals(page));
+        }
         if (page.equals("Accounts")) {
             accountsPanel.reload();
         }
     }
 
     void refreshAccount() {
-        Account account = accounts.selected();
-        accountName.setText(account == null ? "No account" : account.username);
-        accountType.setText(account == null ? "Click to add one" : account.type == Account.Type.MICROSOFT ? "Microsoft" : "Offline");
         home.refresh();
         repaint();
     }
 
-    private JPanel sidebar() {
-        JPanel side = new JPanel();
-        side.setBackground(Palette.SIDEBAR);
-        side.setLayout(new BoxLayout(side, BoxLayout.Y_AXIS));
-        side.setPreferredSize(new Dimension(210, 0));
-        side.setBorder(BorderFactory.createEmptyBorder(18, 0, 14, 0));
-
-        JPanel logo = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 0)) {
+    private JComponent rail() {
+        JPanel rail = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
+                g.setColor(new Color(255, 255, 255, 10));
+                g.fillRect(getWidth() - 1, 0, 1, getHeight());
             }
         };
-        logo.setOpaque(false);
-        JLabel mark = new JLabel(new javax.swing.ImageIcon(Icons.appIcon(34)));
-        JPanel words = new JPanel();
-        words.setOpaque(false);
-        words.setLayout(new BoxLayout(words, BoxLayout.Y_AXIS));
-        words.add(Components.label("LARP", 20f, Font.BOLD, Palette.TEXT));
-        words.add(Components.label("CLIENT", 10f, Font.BOLD, Palette.ACCENT_LIGHT));
-        logo.add(mark);
-        logo.add(words);
-        logo.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
-        logo.setAlignmentX(LEFT_ALIGNMENT);
-        side.add(logo);
-        side.add(Box.createVerticalStrut(26));
+        rail.setBackground(Palette.SIDEBAR);
+        rail.setLayout(new BoxLayout(rail, BoxLayout.Y_AXIS));
+        rail.setPreferredSize(new Dimension(84, 0));
+        rail.setBorder(BorderFactory.createEmptyBorder(20, 0, 16, 0));
 
-        for (String page : new String[]{"Home", "Accounts", "Settings", "Console"}) {
-            Components.NavButton button = new Components.NavButton(page);
-            button.setAlignmentX(LEFT_ALIGNMENT);
-            button.addActionListener(e -> show(page));
-            nav.put(page, button);
-            side.add(button);
-            side.add(Box.createVerticalStrut(2));
+        JLabel logo = new JLabel(new javax.swing.ImageIcon(Icons.appIcon(40)));
+        logo.setAlignmentX(Component.CENTER_ALIGNMENT);
+        rail.add(logo);
+        rail.add(Box.createVerticalStrut(28));
+
+        Object[][] items = {{"Home", Icons.Glyph.HOME}, {"Accounts", Icons.Glyph.USER},
+                {"Settings", Icons.Glyph.SLIDERS}, {"Console", Icons.Glyph.TERMINAL}};
+        for (Object[] item : items) {
+            NavRail entry = new NavRail((String) item[0], (Icons.Glyph) item[1], this::show);
+            entry.setAlignmentX(Component.CENTER_ALIGNMENT);
+            nav.add(entry);
+            rail.add(entry);
+            rail.add(Box.createVerticalStrut(4));
         }
-        side.add(Box.createVerticalGlue());
-
-        Components.Card chip = new Components.Card(new BorderLayout(10, 0), 14);
-        chip.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
-        chip.setMaximumSize(new Dimension(190, 54));
-        chip.setAlignmentX(LEFT_ALIGNMENT);
-        chip.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        JPanel avatar = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = Components.smooth(g);
-                g2.setColor(Palette.ACCENT);
-                g2.fillRoundRect(0, 0, 34, 34, 10, 10);
-                g2.setColor(Color.WHITE);
-                g2.setFont(Palette.font(Font.BOLD, 16f));
-                String initial = accountName.getText().isEmpty() ? "?" : accountName.getText().substring(0, 1).toUpperCase();
-                int tw = g2.getFontMetrics().stringWidth(initial);
-                g2.drawString(initial, (34 - tw) / 2, 23);
-                g2.dispose();
+        rail.add(Box.createVerticalGlue());
+        NavRail folder = new NavRail("Files", Icons.Glyph.FOLDER, label -> {
+            try {
+                java.nio.file.Files.createDirectories(files.instance);
+            } catch (java.io.IOException ignored) {
+                // opening will simply fail
             }
-        };
-        avatar.setOpaque(false);
-        avatar.setPreferredSize(new Dimension(34, 34));
-        JPanel text = new JPanel();
-        text.setOpaque(false);
-        text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
-        text.add(accountName);
-        text.add(accountType);
-        chip.add(avatar, BorderLayout.WEST);
-        chip.add(text, BorderLayout.CENTER);
-        chip.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                show("Accounts");
-            }
+            Platform.open(files.instance.toString());
         });
-        JPanel chipWrap = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
-        chipWrap.setOpaque(false);
-        chipWrap.setAlignmentX(LEFT_ALIGNMENT);
-        chipWrap.setMaximumSize(new Dimension(Integer.MAX_VALUE, 56));
-        chip.setPreferredSize(new Dimension(186, 52));
-        chipWrap.add(chip);
-        side.add(chipWrap);
-        side.add(Box.createVerticalStrut(8));
-        JLabel version = Components.label("Launcher " + Main.VERSION, 10f, Font.PLAIN, Palette.TEXT_DIM);
-        version.setBorder(BorderFactory.createEmptyBorder(0, 22, 0, 0));
-        version.setAlignmentX(LEFT_ALIGNMENT);
-        side.add(version);
-        return side;
+        folder.setAlignmentX(Component.CENTER_ALIGNMENT);
+        folder.setToolTipText("Open the game folder");
+        rail.add(folder);
+        return rail;
     }
 
-    private JPanel titleBar() {
-        JPanel bar = new JPanel(new BorderLayout());
-        bar.setBackground(Palette.BG);
-        bar.setPreferredSize(new Dimension(0, 34));
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
-        buttons.setOpaque(false);
-        buttons.add(windowButton("–", false, () -> setState(ICONIFIED)));
-        buttons.add(windowButton("✕", true, () -> dispatchEvent(
-                new java.awt.event.WindowEvent(this, java.awt.event.WindowEvent.WINDOW_CLOSING))));
-        bar.add(buttons, BorderLayout.EAST);
+    private JComponent windowControls() {
+        JPanel controls = new JPanel();
+        controls.setOpaque(false);
+        controls.setLayout(new BoxLayout(controls, BoxLayout.X_AXIS));
+        controls.add(windowButton(Icons.Glyph.MINIMIZE, false, () -> setState(ICONIFIED)));
+        controls.add(windowButton(Icons.Glyph.CLOSE, true,
+                () -> dispatchEvent(new WindowEvent(this, WindowEvent.WINDOW_CLOSING))));
+        controls.setSize(controls.getPreferredSize());
 
-        // Drag the undecorated window by its title bar.
+        // Drag the undecorated window from the empty top strip.
         Point[] origin = new Point[1];
         MouseAdapter drag = new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                origin[0] = e.getPoint();
+                origin[0] = e.getLocationOnScreen();
             }
 
             @Override
             public void mouseDragged(MouseEvent e) {
+                Point now = e.getLocationOnScreen();
                 Point p = getLocation();
-                setLocation(p.x + e.getX() - origin[0].x, p.y + e.getY() - origin[0].y);
+                setLocation(p.x + now.x - origin[0].x, p.y + now.y - origin[0].y);
+                origin[0] = now;
             }
         };
-        bar.addMouseListener(drag);
-        bar.addMouseMotionListener(drag);
-        return bar;
+        pages.addMouseListener(drag);
+        pages.addMouseMotionListener(drag);
+        return controls;
     }
 
-    private JButton windowButton(String glyph, boolean danger, Runnable action) {
-        JButton button = new JButton(glyph) {
+    private JComponent windowButton(Icons.Glyph glyph, boolean danger, Runnable action) {
+        JComponent button = new JComponent() {
+            boolean hover;
+
+            {
+                setPreferredSize(new Dimension(46, 36));
+                setMaximumSize(new Dimension(46, 36));
+                setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                addMouseListener(new MouseAdapter() {
+                    @Override
+                    public void mouseEntered(MouseEvent e) {
+                        hover = true;
+                        repaint();
+                    }
+
+                    @Override
+                    public void mouseExited(MouseEvent e) {
+                        hover = false;
+                        repaint();
+                    }
+
+                    @Override
+                    public void mouseClicked(MouseEvent e) {
+                        action.run();
+                    }
+                });
+            }
+
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = Components.smooth(g);
-                if (getModel().isRollover()) {
-                    g2.setColor(danger ? Palette.DANGER : Palette.CARD_HOVER);
+                if (hover) {
+                    g2.setColor(danger ? Palette.DANGER : new Color(255, 255, 255, 20));
                     g2.fillRect(0, 0, getWidth(), getHeight());
                 }
-                g2.setColor(getModel().isRollover() ? Color.WHITE : Palette.TEXT_DIM);
-                g2.setFont(Palette.font(Font.PLAIN, 13f));
-                int tw = g2.getFontMetrics().stringWidth(getText());
-                g2.drawString(getText(), (getWidth() - tw) / 2, getHeight() / 2 + 5);
+                Icons.draw(g2, glyph, getWidth() / 2f - 10, getHeight() / 2f - 10, hover ? Color.WHITE : Palette.TEXT_DIM);
                 g2.dispose();
             }
         };
-        button.setPreferredSize(new Dimension(46, 34));
-        button.setContentAreaFilled(false);
-        button.setBorderPainted(false);
-        button.setFocusPainted(false);
-        button.setRolloverEnabled(true);
-        button.addActionListener(e -> action.run());
         return button;
+    }
+
+    /** Lays the window controls over the top-right corner of the pages. */
+    private static final class Overlay extends JPanel {
+        private final JComponent content;
+        private final JComponent controls;
+
+        Overlay(JComponent content, JComponent controls) {
+            super(null);
+            this.content = content;
+            this.controls = controls;
+            add(controls);
+            add(content);
+        }
+
+        @Override
+        public void doLayout() {
+            content.setBounds(0, 0, getWidth(), getHeight());
+            Dimension d = controls.getPreferredSize();
+            controls.setBounds(getWidth() - d.width, 0, d.width, d.height);
+        }
+
+        @Override
+        public boolean isOptimizedDrawingEnabled() {
+            return false; // children overlap
+        }
     }
 }

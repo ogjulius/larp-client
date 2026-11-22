@@ -94,6 +94,7 @@ public final class LarpClient {
 
         MinecraftForge.EVENT_BUS.register(new ForgeEventBridge(events));
         MinecraftForge.EVENT_BUS.register(new MenuReplacer());
+        dev.larpclient.core.dev.ScreenshotTour.installIfRequested();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             config.save();
             music.save();

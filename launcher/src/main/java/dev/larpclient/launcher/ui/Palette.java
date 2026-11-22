@@ -2,15 +2,15 @@ package dev.larpclient.launcher.ui;
 
 import java.awt.Color;
 import java.awt.Font;
-import javax.swing.UIManager;
 
 /** Launcher colours and fonts (matches the in-game theme). */
 public final class Palette {
-    public static final Color BG = new Color(0x141419);
-    public static final Color SIDEBAR = new Color(0x0E0E12);
-    public static final Color CARD = new Color(0x1C1C24);
-    public static final Color CARD_HOVER = new Color(0x25252F);
-    public static final Color BORDER = new Color(0x2C2C38);
+    public static final Color BG = new Color(0x111115);
+    public static final Color SIDEBAR = new Color(0x0B0B0E);
+    public static final Color CARD = new Color(0x18181D);
+    public static final Color CARD_HOVER = new Color(0x222229);
+    public static final Color BORDER = new Color(0x26262E);
+    public static final Color HAIRLINE = new Color(255, 255, 255, 14);
     public static final Color ACCENT = new Color(0x8B5CF6);
     public static final Color ACCENT_LIGHT = new Color(0xC4B5FD);
     public static final Color ACCENT_DARK = new Color(0x5B3BA8);
@@ -27,11 +27,7 @@ public final class Palette {
     }
 
     public static Font font(int style, float size) {
-        Font base = UIManager.getFont("Label.font");
-        if (base == null) {
-            base = new Font(Font.SANS_SERIF, Font.PLAIN, 13);
-        }
-        return base.deriveFont(style, size);
+        return Fonts.of(style, size);
     }
 
     public static Color alpha(Color c, int alpha) {
