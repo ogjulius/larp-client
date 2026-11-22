@@ -1,6 +1,21 @@
 # Development Guide
 
-## Toolchain
+The repository is a Gradle multi-project build:
+
+| Project | What | Java |
+|---|---|---|
+| `mod/` | Forge 1.8.9 mod, runs inside the game | 8 |
+| `launcher/` | Desktop launcher (Swing + FlatLaf). Installs and starts the game and bundles the mod jar | 17 |
+
+```sh
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+./gradlew build                 # everything + tests
+./gradlew :mod:runGame          # dev game with the mod (deobfuscated)
+./gradlew :launcher:run         # launcher from source
+java -jar launcher/build/libs/larp-launcher-*.jar --launch --offline Dev   # headless end-to-end
+```
+
+## Mod toolchain
 
 | Piece | Version | Why |
 |---|---|---|
@@ -16,11 +31,11 @@ distros are detected automatically or downloaded through the Foojay toolchain re
 
 ```sh
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
-./gradlew build        # compile, run unit tests, produce build/libs/larpclient-<ver>.jar
-./gradlew test         # unit tests only
-./gradlew runGame      # launch Minecraft with the mod (offline dev account)
+./gradlew :mod:build      # compile, run unit tests, produce mod/build/libs/larpclient-<ver>.jar
+./gradlew :mod:test       # unit tests only
+./gradlew :mod:runGame    # launch Minecraft with the mod (offline dev account)
                        # (Loom's own runClient is broken on Gradle 8, see build.gradle.kts)
-./gradlew genSources   # decompiled Minecraft sources for IDE navigation
+./gradlew :mod:genSources   # decompiled Minecraft sources for IDE navigation
 ```
 
 To log in with a real account in dev runs, see [DevAuth](https://github.com/DJtheRedstoner/DevAuth)
@@ -28,7 +43,7 @@ To log in with a real account in dev runs, see [DevAuth](https://github.com/DJth
 
 IntelliJ IDEA: open the folder as a Gradle project, set the Gradle JVM to 17 and the project SDK to 8.
 
-## Architecture
+## Mod architecture
 
 ```
 dev.larpclient
@@ -43,6 +58,8 @@ dev.larpclient
 │   ├── config            ConfigManager: JSON profile load/save
 │   ├── hud               HudModule, TextHudModule, HudRenderer
 │   ├── gui               ModMenuScreen, HudEditorScreen, SettingWidget, Theme
+│   │   └── menu          LarpMainMenu (replaces the title screen), MusicScreen, MenuBackground
+│   ├── music             MusicPlayer + streaming MP3 (JLayer) / WAV decoders
 │   └── util              CpsTracker, Animation, RenderUtil
 ├── modules               feature implementations (hud / utility / performance) + Modules registry
 ├── mixin                 bytecode patches (auto-discovered, see init/AutoDiscoveryMixinPlugin)
@@ -99,6 +116,55 @@ Mixins in `dev.larpclient.mixin` are discovered automatically, so you don't need
 `mixins.larpclient.json`. Injectors default to `require = 1`, so a broken target fails loudly at
 startup instead of silently doing nothing. Name injector methods `larp$<purpose>` to avoid clashes.
 
+### Music player
+
+`MusicPlayer` streams on one daemon thread per track: HTTP (manual redirects) → `AudioDecoder`
+(MP3 via shaded JLayer, WAV via Java Sound) → 16-bit PCM → volume scaling → `SourceDataLine`.
+Pause blocks the worker on a monitor, and switching tracks cancels the old worker. The playlist is stored in
+`config/larpclient/music.json`. OGG isn't supported yet; adding it means implementing
+`AudioDecoder` with JOrbis, which already ships with Minecraft.
+
+## Launcher architecture
+
+```
+dev.larpclient.launcher
+├── Main / Cli            GUI entry point; headless --launch / --install-only / --export-icon
+├── game
+│   ├── Installer         vanilla JSON → client jar → Forge installer (universal jar + install_profile)
+│   │                     → libraries (rules, natives, mirrors) → natives → assets → log4j config
+│   ├── JavaRuntime       configured path → system Java 8 → Mojang "jre-legacy" download
+│   ├── GameLauncher      instance prep (mod jar, themed Forge splash), command line, process + log pump
+│   └── Log4jXmlFormatter turns Mojang's XML log output back into readable lines
+├── auth                  Account, AccountStore (0600 file), MicrosoftAuth (device code → XBL → XSTS → MC)
+├── config                LauncherSettings
+└── ui                    LauncherFrame, Home/Accounts/Settings/Console pages, custom-painted components
+```
+
+Files: `$XDG_DATA_HOME/larpclient` (`libraries/ assets/ versions/ runtime/ instance/`) and
+`$XDG_CONFIG_HOME/larpclient` (`launcher.json`, `accounts.json`). The game directory is `instance/`.
+
+Notes:
+- **Log4Shell**: 1.8.9 ships log4j 2.0-beta9. The launcher always applies Mojang's patched logging
+  config from the version JSON.
+- **Bundled mod**: `:launcher:processResources` copies `:mod:remapJar` into the jar as
+  `larp/larpclient.jar.bin`. The suffix isn't `.jar` because Shadow would unpack it. It's
+  installed into `instance/mods/` on every launch if the hash changed.
+- **Tiling WMs**: the window has a fixed size so Hyprland/Sway/i3 float it, and it re-asserts
+  its size after mapping because XWayland initial size hints are sometimes ignored.
+
+### Microsoft sign-in
+
+Microsoft login needs an Azure app registration whose client ID has been approved by Mojang for
+the Minecraft services API. New apps must apply at
+<https://aka.ms/mce-reviewappid>. Until then, `login_with_xbox` returns 403. To set it up:
+
+1. Register an app at <https://portal.azure.com> → *App registrations* (personal Microsoft accounts,
+   "Allow public client flows" = yes, no redirect URI needed for device code).
+2. Request Minecraft API access for that client ID.
+3. Paste the client ID in *Launcher → Settings → Microsoft sign-in*.
+
+Offline profiles work without any of this, for singleplayer and offline-mode servers.
+
 ## Adding a module
 
 1. Create a class in `modules/<category>/`:
@@ -136,10 +202,11 @@ clicking, ESP through walls, etc). PRs adding them will be rejected.
   profile id (`"Armor Status"` → `armor_status`), so treat them as stable too.
 - Keep `Reference.VERSION` in sync with `version` in `gradle.properties`.
 - Commits: imperative mood, one logical change each (`Add potion effects HUD`).
-- Run `./gradlew build` before pushing; CI runs the same command.
+- Run `./gradlew build` before pushing. CI runs the same command.
 
 ## Releasing
 
 1. Bump `version` in `gradle.properties` and `Reference.VERSION`.
 2. `./gradlew clean build`
-3. Tag `vX.Y.Z` and attach `build/libs/larpclient-X.Y.Z.jar` to a GitHub release.
+3. Tag `vX.Y.Z` and attach `launcher/build/libs/larp-launcher-X.Y.Z.jar` (and optionally
+   `mod/build/libs/larpclient-X.Y.Z.jar`) to a GitHub release.

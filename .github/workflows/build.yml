@@ -22,4 +22,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: larpclient
-          path: build/libs/*.jar
+          path: |
+            launcher/build/libs/larp-launcher-*.jar
+            mod/build/libs/larpclient-*.jar

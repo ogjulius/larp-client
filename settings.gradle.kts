@@ -22,3 +22,6 @@ plugins {
 }
 
 rootProject.name = "larp-client"
+
+include("mod")      // Forge 1.8.9 mod (runs inside the game)
+include("launcher") // Desktop launcher (installs and starts the game)
