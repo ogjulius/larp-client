@@ -114,7 +114,7 @@ public final class SettingsPanel extends JPanel {
             dev.larpclient.launcher.util.Platform.open(frame.files.instance.toString());
         });
         body.add(group("Launcher",
-                row("Keep launcher open", "Stay open while playing to show live logs.", controls(keepOpen)),
+                row("Keep launcher open", "Stay open while playing to show live logs. Off: the launcher closes once the game starts.", controls(keepOpen)),
                 row("Microsoft sign-in", "Client ID of an Azure app approved for Minecraft (see DEVELOPMENT.md).", controls(clientId)),
                 row("Game folder", "Worlds, resource packs, screenshots and logs.", controls(where, open))));
         body.add(Box.createVerticalStrut(40));

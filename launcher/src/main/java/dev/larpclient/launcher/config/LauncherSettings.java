@@ -29,7 +29,8 @@ public final class LauncherSettings {
     public int width = 1280;
     public int height = 720;
     public boolean fullscreen = false;
-    public boolean keepLauncherOpen = true;
+    /** When false the launcher exits as soon as Minecraft has started. */
+    public boolean keepLauncherOpen = false;
     /** Azure application (client) ID used for Microsoft sign-in. */
     public String microsoftClientId = "";
 

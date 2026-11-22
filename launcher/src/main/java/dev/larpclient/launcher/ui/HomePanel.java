@@ -27,6 +27,7 @@ import java.awt.image.BufferedImage;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /** Landing page: wordmark, launch button with inline progress, and the active account. */
 public final class HomePanel extends HomeBackdrop {
@@ -36,6 +37,9 @@ public final class HomePanel extends HomeBackdrop {
     private final JLabel accountName = new JLabel();
     private final JLabel accountType = new JLabel();
     private BufferedImage head;
+    /** How long the launcher lingers after starting the game, to report an immediate crash. */
+    private static final long CRASH_GRACE_SECONDS = 4;
+
     private volatile Process game;
 
     HomePanel(LauncherFrame frame) {
@@ -219,19 +223,30 @@ public final class HomePanel extends HomeBackdrop {
             frame.console.append("[launcher] Java: " + java);
             frame.console.append("[launcher] " + GameLauncher.redact(command, account));
             progress("Starting Minecraft", -1);
-            game = launcher.start(command, frame.console::append, frame.settings.threadedGl);
-            SwingUtilities.invokeLater(() -> {
-                launch.setBusy("Running", "Minecraft is open", 1);
-                if (!frame.settings.keepLauncherOpen) {
-                    frame.setVisible(false);
+            if (!frame.settings.keepLauncherOpen) {
+                // Hand Minecraft off and quit. Output goes to a file because no one will read the pipe.
+                Path log = frame.files.instance.resolve("logs").resolve("launcher-output.log");
+                game = launcher.startDetached(command, frame.settings.threadedGl, log);
+                frame.console.append("[launcher] Game output: " + log);
+                // Stay a moment to catch an instant failure (bad JVM args, missing Java 8, ...).
+                if (!game.waitFor(CRASH_GRACE_SECONDS, TimeUnit.SECONDS)) {
+                    System.exit(0);
                 }
-            });
+                int exit = game.exitValue();
+                game = null;
+                frame.console.append("[launcher] Minecraft exited with code " + exit + " (see " + log + ")");
+                SwingUtilities.invokeLater(() -> {
+                    launch.setIdle("Launch");
+                    status.setForeground(new Color(0xFF7A7F));
+                    status.setText("Minecraft closed right away (code " + exit + "). Log: " + log);
+                });
+                return;
+            }
+            game = launcher.start(command, frame.console::append, frame.settings.threadedGl);
+            SwingUtilities.invokeLater(() -> launch.setBusy("Running", "Minecraft is open", 1));
             int exit = game.waitFor();
             game = null;
             frame.console.append("[launcher] Minecraft exited with code " + exit);
-            if (!frame.settings.keepLauncherOpen) {
-                System.exit(0);
-            }
             SwingUtilities.invokeLater(() -> {
                 launch.setIdle("Launch");
                 frame.setVisible(true);

@@ -147,20 +147,7 @@ public final class GameLauncher {
     }
 
     public Process start(List<String> command, Consumer<String> log, boolean threadedGl) throws IOException {
-        Files.createDirectories(files.instance);
-        ProcessBuilder builder = new ProcessBuilder(command)
-                .directory(files.instance.toFile())
-                .redirectErrorStream(true);
-        if (Platform.OS == Platform.Os.LINUX) {
-            java.util.Map<String, String> env = builder.environment();
-            if (threadedGl) {
-                env.putIfAbsent("mesa_glthread", "true");             // Mesa (AMD / Intel)
-                env.putIfAbsent("__GL_THREADED_OPTIMIZATIONS", "1"); // NVIDIA proprietary
-            }
-            env.putIfAbsent("__GL_SYNC_TO_VBLANK", "0");             // let the in-game VSync option decide
-            env.putIfAbsent("vblank_mode", "0");
-        }
-        Process process = builder.start();
+        Process process = processBuilder(command, threadedGl).redirectErrorStream(true).start();
         Thread pump = new Thread(() -> {
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
@@ -176,6 +163,34 @@ public final class GameLauncher {
         pump.setDaemon(true);
         pump.start();
         return process;
+    }
+
+    /**
+     * Start the game independent of the launcher: output goes to {@code logFile} instead of a pipe,
+     * so the launcher can exit while Minecraft keeps running.
+     */
+    public Process startDetached(List<String> command, boolean threadedGl, Path logFile) throws IOException {
+        Files.createDirectories(logFile.getParent());
+        return processBuilder(command, threadedGl)
+                .redirectErrorStream(true)
+                .redirectOutput(logFile.toFile())
+                .redirectInput(ProcessBuilder.Redirect.from(new java.io.File(Platform.OS == Platform.Os.WINDOWS ? "NUL" : "/dev/null")))
+                .start();
+    }
+
+    private ProcessBuilder processBuilder(List<String> command, boolean threadedGl) throws IOException {
+        Files.createDirectories(files.instance);
+        ProcessBuilder builder = new ProcessBuilder(command).directory(files.instance.toFile());
+        if (Platform.OS == Platform.Os.LINUX) {
+            java.util.Map<String, String> env = builder.environment();
+            if (threadedGl) {
+                env.putIfAbsent("mesa_glthread", "true");             // Mesa (AMD / Intel)
+                env.putIfAbsent("__GL_THREADED_OPTIMIZATIONS", "1"); // NVIDIA proprietary
+            }
+            env.putIfAbsent("__GL_SYNC_TO_VBLANK", "0");             // let the in-game VSync option decide
+            env.putIfAbsent("vblank_mode", "0");
+        }
+        return builder;
     }
 
     /** Redact the access token before showing a command line to the user. */

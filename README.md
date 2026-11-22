@@ -77,6 +77,10 @@ JAVA_HOME=/usr/lib/jvm/java-17-openjdk ./gradlew build
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for the architecture and how to contribute.
 
+## Contributors
+
+- **ogjulius**: creator and main contributor
+
 ## License
 
 [MIT](LICENSE). The mod bundles [JLayer](http://www.javazoom.net/javalayer/javalayer.html) (LGPL 2.1) for MP3
