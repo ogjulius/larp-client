@@ -92,4 +92,52 @@ class ConfigManagerTest {
     void moduleIdIsStable() {
         assertEquals("alpha_mod", new Sample("Alpha Mod", false).getId());
     }
+
+    /** Regression (audit A5): toggling a module by hotkey must reach the profile without opening a menu. */
+    @Test
+    void hotkeyToggleIsPersisted(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("profile.json");
+        Sample s = new Sample("Hot", false);
+        s.getToggleKey().set(30);
+        ModuleManager modules = manager(s);
+        ConfigManager config = new ConfigManager(file, modules);
+        modules.setChangeListener(config::saveAsync);
+
+        modules.handleKey(30);
+        config.flush();
+
+        Sample reloaded = new Sample("Hot", false);
+        new ConfigManager(file, manager(reloaded)).load();
+        assertTrue(reloaded.isEnabled());
+    }
+
+    @Test
+    void unboundKeyDoesNotNotify() {
+        Sample s = new Sample("Quiet", false);
+        ModuleManager modules = manager(s);
+        int[] calls = {0};
+        modules.setChangeListener(() -> calls[0]++);
+        modules.handleKey(30);
+        assertEquals(0, calls[0]);
+        assertFalse(s.isEnabled());
+    }
+
+    /** An older queued snapshot must never overwrite a newer synchronous save. */
+    @Test
+    void asyncSnapshotsNeverOverwriteNewerState(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("profile.json");
+        Sample s = new Sample("Order", false);
+        ConfigManager config = new ConfigManager(file, manager(s));
+        for (int i = 0; i < 200; i++) {
+            s.amount.set((double) (i % 10));
+            config.saveAsync();
+        }
+        s.amount.set(7.0);
+        config.save();
+        config.flush();
+
+        Sample reloaded = new Sample("Order", false);
+        new ConfigManager(file, manager(reloaded)).load();
+        assertEquals(7.0, reloaded.amount.get());
+    }
 }

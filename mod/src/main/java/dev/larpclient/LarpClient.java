@@ -68,6 +68,7 @@ public final class LarpClient {
         music.load();
         config = new ConfigManager(dataDir.resolve("profile.json"), modules);
         config.load();
+        modules.setChangeListener(config::saveAsync); // hotkey toggles persist immediately
 
         menuKey = new KeyBinding("Open Menu", Keyboard.KEY_RSHIFT, KEY_CATEGORY);
         ClientRegistry.registerKeyBinding(menuKey);

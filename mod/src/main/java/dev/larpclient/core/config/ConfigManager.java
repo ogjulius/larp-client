@@ -19,12 +19,24 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Persists module state to a single human-editable JSON profile.
  * <p>
  * Writes are atomic (temp file + move) so a crash mid-save never corrupts the profile. A profile
  * that fails to parse is moved aside to {@code <name>.broken} and defaults are applied.
+ * <p>
+ * Threading: {@link #save()} and {@link #saveAsync()} must be called on the client thread, which owns
+ * module state; both take the snapshot there. {@code saveAsync} writes it on a background thread so the
+ * render thread never waits for the disk. Snapshots carry a sequence number and an older one is never
+ * written over a newer one.
  */
 public final class ConfigManager {
     public static final int FORMAT_VERSION = 1;
@@ -33,6 +45,21 @@ public final class ConfigManager {
 
     private final Path file;
     private final ModuleManager modules;
+    private final Object writeLock = new Object();
+    private final AtomicLong sequence = new AtomicLong();
+    private final AtomicReference<Snapshot> pending = new AtomicReference<>();
+    private long writtenSequence;
+    private ExecutorService writer;
+
+    private static final class Snapshot {
+        final long sequence;
+        final String json;
+
+        Snapshot(long sequence, String json) {
+            this.sequence = sequence;
+            this.json = json;
+        }
+    }
 
     public ConfigManager(Path file, ModuleManager modules) {
         this.file = file;
@@ -62,20 +89,77 @@ public final class ConfigManager {
         }
     }
 
+    /** Snapshot and write now (blocking). */
     public void save() {
+        write(snapshot());
+    }
+
+    /** Snapshot now, write on the background writer. Bursts of calls coalesce into one write. */
+    public void saveAsync() {
+        Snapshot snapshot = snapshot();
+        if (pending.getAndSet(snapshot) == null) {
+            writer().execute(() -> {
+                Snapshot latest = pending.getAndSet(null);
+                if (latest != null) {
+                    write(latest);
+                }
+            });
+        }
+    }
+
+    /** Wait (up to 5 s) for queued background writes. */
+    public void flush() {
+        ExecutorService w;
+        synchronized (this) {
+            w = writer;
+        }
+        if (w == null) {
+            return;
+        }
         try {
-            Files.createDirectories(file.toAbsolutePath().getParent());
-            Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
-            try (Writer writer = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
-                GSON.toJson(serialize(), writer);
+            w.submit(() -> { }).get(5, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException | TimeoutException e) {
+            LOGGER.warn("Timed out waiting for profile writes", e);
+        }
+    }
+
+    private synchronized ExecutorService writer() {
+        if (writer == null) {
+            writer = Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "LARP config writer");
+                t.setDaemon(true);
+                return t;
+            });
+        }
+        return writer;
+    }
+
+    private Snapshot snapshot() {
+        return new Snapshot(sequence.incrementAndGet(), GSON.toJson(serialize()));
+    }
+
+    private void write(Snapshot snapshot) {
+        synchronized (writeLock) {
+            if (snapshot.sequence <= writtenSequence) {
+                return; // a newer snapshot is already on disk
             }
             try {
-                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (IOException atomicUnsupported) {
-                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
+                Files.createDirectories(file.toAbsolutePath().getParent());
+                Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
+                try (Writer out = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
+                    out.write(snapshot.json);
+                }
+                try {
+                    Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                } catch (IOException atomicUnsupported) {
+                    Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
+                }
+                writtenSequence = snapshot.sequence;
+            } catch (IOException e) {
+                LOGGER.error("Failed to save profile {}", file, e);
             }
-        } catch (IOException e) {
-            LOGGER.error("Failed to save profile {}", file, e);
         }
     }
 
