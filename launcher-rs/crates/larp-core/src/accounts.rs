@@ -174,6 +174,18 @@ impl AccountStore {
         self.selected = Some(self.accounts.len() - 1);
     }
 
+    /// Replace the account with the same UUID in place (keeps its position and the selection), for
+    /// example after a token refresh. Returns false if there is no such account.
+    pub fn update(&mut self, account: Account) -> bool {
+        match self.accounts.iter_mut().find(|a| a.uuid == account.uuid) {
+            Some(slot) => {
+                *slot = account;
+                true
+            }
+            None => false,
+        }
+    }
+
     pub fn remove(&mut self, uuid: &str) {
         let current = self.selected().map(|a| a.uuid.clone());
         self.accounts.retain(|a| a.uuid != uuid);
@@ -271,6 +283,22 @@ mod tests {
             fs::read_to_string(dir.path().join("accounts.json.broken")).unwrap(),
             corrupt
         );
+    }
+
+    #[test]
+    fn update_replaces_in_place_and_keeps_the_selection() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut store = AccountStore::load(&dir.path().join("accounts.json"));
+        store.add(Account::offline("First"));
+        store.add(Account::offline("Second"));
+        store.select(&Account::offline("Second").uuid);
+        let mut refreshed = Account::offline("First");
+        refreshed.access_token_expires_at = 42;
+        assert!(store.update(refreshed));
+        assert_eq!(store.all()[0].access_token_expires_at, 42);
+        assert_eq!(store.selected().unwrap().username, "Second");
+        assert!(!store.update(Account::offline("Nobody")));
+        assert_eq!(store.all().len(), 2);
     }
 
     #[test]

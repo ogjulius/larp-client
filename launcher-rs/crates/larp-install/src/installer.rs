@@ -122,10 +122,12 @@ impl Installer {
         let libraries = libraries::resolve(&vanilla, forge_info, target, &self.endpoints)?;
         let done = AtomicUsize::new(0);
         let total = libraries.len();
-        run_bounded(&libraries, LIBRARY_DOWNLOADS, |library| {
+        // Owned items: borrowed ones make the future impossible to prove `Send` (a rustc
+        // limitation with higher-ranked lifetimes), and the graphical launcher spawns it.
+        run_bounded(libraries.clone(), LIBRARY_DOWNLOADS, |library| {
             let (done, progress) = (&done, &progress);
             async move {
-                self.download_library(library).await?;
+                self.download_library(&library).await?;
                 let n = done.fetch_add(1, Ordering::Relaxed) + 1;
                 progress.update("Downloading libraries", Some(n as f64 / total as f64));
                 Ok::<(), InstallError>(())

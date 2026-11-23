@@ -96,3 +96,22 @@ async fn with_mouse_fix(classpath: &[PathBuf], patches: &Path) -> Result<Vec<Pat
     classpath[index] = patched;
     Ok(classpath)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_send<T: Send>(_: &T) {}
+
+    /// The graphical launcher runs launches on a multi-threaded runtime, so the whole pipeline must
+    /// stay `Send` (borrowed iterators in async code can silently break that).
+    #[test]
+    fn pipeline_futures_are_send() {
+        let (net, files, settings) = (Net::new().unwrap(), GameFiles::new("/tmp/larp"), Settings::default());
+        let account = Account::offline("Dev");
+        let progress = |_: &str, _: Option<f64>| {};
+        let warn = |_: &str| {};
+        assert_send(&prepare(&net, &files, &settings, &account, &progress, &warn));
+        assert_send(&install(&net, &files, &settings, &progress));
+    }
+}
