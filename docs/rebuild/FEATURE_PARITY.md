@@ -7,27 +7,27 @@ Legend: ✅ works · ⚠️ works with known issue (see TECHNICAL_AUDIT.md) · �
 
 ## Launcher
 
-| Feature | Today | Status | Target |
-|---|---|---|---|
-| One-click install: vanilla 1.8.9, Forge, libraries, natives, assets | `Installer` | ✅ | 🦀 |
-| SHA-1 verified, parallel, resumable downloads | `Http.download`, `Installer` | ⚠️ A10 | 🦀 |
-| Java 8 discovery / Mojang `jre-legacy` download | `JavaRuntime` | ✅ | 🦀 |
-| Log4Shell-safe logging config | `Installer`, `GameLauncher` | ✅ | 🦀 |
-| Microsoft sign-in (device code → XBL → XSTS → MC) | `MicrosoftAuth` | ✅ (needs approved Azure ID) | 🦀 |
-| Token refresh before launch | `HomePanel`, `Cli` | ✅ | 🦀 |
-| Offline profiles (vanilla-compatible UUID) | `Account.offline` | ✅ | 🦀 |
-| Account storage, owner-only file | `AccountStore` | ⚠️ A1, A2 | 🦀 (OS keyring when available, 0600 file fallback) |
-| Settings: memory, resolution, fullscreen, Java path, JVM args, threaded GL, keep-open | `LauncherSettings`, `SettingsPanel` | ⚠️ A3, A4 | 🦀 |
-| Tuned G1 flags, `-Xms = -Xmx`, Mesa/NVIDIA threaded GL env, vsync env | `GameLauncher` | ✅ | 🦀 |
-| Bundled mod install (hash-checked), stale copy cleanup | `GameLauncher.prepareInstance` | ✅ | 🦀 |
-| First-run fast `options.txt`, themed Forge splash | `GameLauncher` | ✅ | 🦀 |
-| XWayland mouse-freeze fix (patched LWJGL jar) | `LwjglMousePatch` + `gamepatch/` | ⚠️ A11, uncommitted | 🦀 patcher; ☕ `LarpWindowSizeCache` (runs in game) |
-| Live game console, log4j XML → text | `ConsolePanel`, `Log4jXmlFormatter` | ✅ | 🦀 |
-| Detached launch, launcher closes after start | `startDetached` | ✅ | 🦀 |
-| Headless CLI: `--launch`, `--offline`, `--install-only`, `--export-icon` | `Cli` | ✅ | 🦀 (same flags) |
-| Home / Accounts / Settings / Console pages, nav rail, skins, starry backdrop | `ui/*` | ✅ | 🦀 (visual design preserved: palette, Inter font, layout) |
-| Fixed-size window that floats on tiling WMs | `LauncherFrame` | ✅ | 🦀 |
-| Linux desktop entry + `larp-client` command | `scripts/install-linux.sh` | ✅ | 🦀 (native binary, no JDK 17 needed) |
+| Feature | Today | Status | Target | Rust launcher (Phase 3) |
+|---|---|---|---|---|
+| One-click install: vanilla 1.8.9, Forge, libraries, natives, assets | `Installer` | ✅ | 🦀 | ✅ golden files + e2e |
+| SHA-1 verified, parallel, resumable downloads | `Http.download`, `Installer` | ⚠️ A10 | 🦀 | ✅ |
+| Java 8 discovery / Mojang `jre-legacy` download | `JavaRuntime` | ✅ | 🦀 | ✅ |
+| Log4Shell-safe logging config | `Installer`, `GameLauncher` | ✅ | 🦀 | ✅ |
+| Microsoft sign-in (device code → XBL → XSTS → MC) | `MicrosoftAuth` | ✅ (needs approved Azure ID) | 🦀 | ✅ tested against a mock server; live sign-in needs the approved Azure ID |
+| Token refresh before launch | `HomePanel`, `Cli` | ✅ | 🦀 | ✅ |
+| Offline profiles (vanilla-compatible UUID) | `Account.offline` | ✅ | 🦀 | ✅ |
+| Account storage, owner-only file | `AccountStore` | ⚠️ A1, A2 | 🦀 (OS keyring when available, 0600 file fallback) | ⚠️ owner-only file, same as Java. The OS keyring waits for Phase 4: both launchers share `accounts.json` while they ship side by side |
+| Settings: memory, resolution, fullscreen, Java path, JVM args, threaded GL, keep-open | `LauncherSettings`, `SettingsPanel` | ⚠️ A3, A4 | 🦀 | ✅ (A20 fixed in both launchers) |
+| Tuned G1 flags, `-Xms = -Xmx`, Mesa/NVIDIA threaded GL env, vsync env | `GameLauncher` | ✅ | 🦀 | ✅ |
+| Bundled mod install (hash-checked), stale copy cleanup | `GameLauncher.prepareInstance` | ✅ | 🦀 | ✅ |
+| First-run fast `options.txt`, themed Forge splash | `GameLauncher` | ✅ | 🦀 | ✅ |
+| XWayland mouse-freeze fix (patched LWJGL jar) | `LwjglMousePatch` + `gamepatch/` | ⚠️ A11, uncommitted | 🦀 patcher; ☕ `LarpWindowSizeCache` (runs in game) | ✅ |
+| Live game console, log4j XML → text | `ConsolePanel`, `Log4jXmlFormatter` | ✅ | 🦀 | ✅ |
+| Detached launch, launcher closes after start | `startDetached` | ✅ | 🦀 | ✅ e2e (`launch_hands_off_and_closes_the_launcher`) |
+| Headless CLI: `--launch`, `--offline`, `--install-only`, `--export-icon` | `Cli` | ✅ | 🦀 (same flags) | ✅ same flags, plus `--page` |
+| Home / Accounts / Settings / Console pages, nav rail, skins, starry backdrop | `ui/*` | ✅ | 🦀 (visual design preserved: palette, Inter font, layout) | ✅ awaiting human review of `screenshots/` (switches instead of Java's checkboxes) |
+| Fixed-size window that floats on tiling WMs | `LauncherFrame` | ✅ | 🦀 | ✅ verified on Hyprland only; Sway, KDE and GNOME not yet tested |
+| Linux desktop entry + `larp-client` command | `scripts/install-linux.sh` | ✅ | 🦀 (native binary, no JDK 17 needed) | ⏳ Phase 4 (`--export-icon` is ready; `install-linux.sh` still installs the Java launcher) |
 
 ## In-game (Forge mod), all ☕
 

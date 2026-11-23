@@ -1,2 +1,6 @@
 /target
 /bundle
+# egui_kittest output when a snapshot does not match
+**/tests/snapshots/**/*.diff.png
+**/tests/snapshots/**/*.new.png
+**/tests/snapshots/**/*.old.png

@@ -12,6 +12,7 @@ name = "larp-client"
 path = "src/main.rs"
 
 [dependencies]
+larp-app.workspace = true
 larp-auth.workspace = true
 larp-core.workspace = true
 larp-install.workspace = true

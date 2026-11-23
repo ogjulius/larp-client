@@ -1,4 +1,5 @@
-//! `larp-client`: the LARP launcher's headless mode, with the same flags as the Java launcher.
+//! `larp-client`: the LARP launcher. Without arguments it opens the graphical launcher; the flags
+//! are the Java launcher's headless mode.
 #![allow(clippy::print_stdout)] // a command-line program reports on stdout
 
 mod args;
@@ -22,6 +23,25 @@ fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     };
+    if args.mode == Mode::Gui {
+        // The window owns the main thread (required on macOS); the launcher's own runtime lives
+        // inside the app.
+        let page = match args.page.as_deref().map(larp_app::Page::parse) {
+            None => larp_app::Page::Home,
+            Some(Some(page)) => page,
+            Some(None) => {
+                eprintln!("larp-client: unknown page (use Home, Accounts, Settings or Console)");
+                return ExitCode::from(2);
+            }
+        };
+        return match larp_app::run(page) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("larp-client: {e}");
+                ExitCode::FAILURE
+            }
+        };
+    }
     let runtime = match tokio::runtime::Builder::new_multi_thread().enable_all().build() {
         Ok(rt) => rt,
         Err(e) => {
@@ -79,13 +99,12 @@ async fn run(args: Args) -> Result<ExitCode, Box<dyn Error>> {
             println!("larp-client {}", env!("CARGO_PKG_VERSION"));
             return Ok(ExitCode::SUCCESS);
         }
-        Mode::Gui => {
-            eprintln!(
-                "This build has no graphical launcher yet. Use --launch or --install-only.\n\n{}",
-                args::USAGE
-            );
-            return Ok(ExitCode::from(2));
+        Mode::ExportIcon => {
+            let path = args.icon.as_deref().unwrap_or("larp-client.png");
+            larp_app::icon::export_png(std::path::Path::new(path))?;
+            return Ok(ExitCode::SUCCESS);
         }
+        Mode::Gui => return unreachable_gui(),
         Mode::Install | Mode::Launch => {}
     }
 
@@ -150,4 +169,9 @@ async fn run(args: Args) -> Result<ExitCode, Box<dyn Error>> {
         .code()
         .and_then(|c| u8::try_from(c).ok())
         .map_or(ExitCode::FAILURE, ExitCode::from))
+}
+
+/// `run` is never called in GUI mode: `main` opens the window first.
+fn unreachable_gui() -> Result<ExitCode, Box<dyn Error>> {
+    Err("internal error: GUI mode reached the headless runner".into())
 }

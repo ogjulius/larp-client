@@ -15,7 +15,14 @@ larp-net = { path = "crates/larp-net" }
 larp-install = { path = "crates/larp-install" }
 larp-auth = { path = "crates/larp-auth" }
 larp-launch = { path = "crates/larp-launch" }
+larp-app = { path = "crates/larp-app" }
 
+eframe = { version = "0.37.0", default-features = false, features = ["glow", "wayland", "x11", "accesskit", "clipboard", "default_fonts"] }
+egui_kittest = { version = "0.37.0", features = ["eframe", "wgpu", "snapshot"] }
+base64 = "0.23.1"
+png = "0.18.1"
+rfd = { version = "0.18.0", default-features = false, features = ["xdg-portal", "wayland"] }
+sysinfo = { version = "0.40.4", default-features = false, features = ["system"] }
 chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
 futures = "0.3.34"
 fastrand = "2.5.0"
