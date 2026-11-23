@@ -1,0 +1,577 @@
+[
+  {
+    "key": "net.minecraftforge:forge",
+    "path": "net/minecraftforge/forge/1.8.9-11.15.1.2318-1.8.9/forge-1.8.9-11.15.1.2318-1.8.9.jar",
+    "url": null,
+    "checksums": [],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "net.minecraft:launchwrapper",
+    "path": "net/minecraft/launchwrapper/1.12/launchwrapper-1.12.jar",
+    "url": "https://libraries.minecraft.net/net/minecraft/launchwrapper/1.12/launchwrapper-1.12.jar",
+    "checksums": [
+      "111e7bea9c968cdb3d06ef4632bf7ff0824d0f36"
+    ],
+    "natives": false,
+    "mirrors": [
+      "https://maven.minecraftforge.net/",
+      "https://repo1.maven.org/maven2/",
+      "https://libraries.minecraft.net/"
+    ]
+  },
+  {
+    "key": "org.ow2.asm:asm-all",
+    "path": "org/ow2/asm/asm-all/5.0.3/asm-all-5.0.3.jar",
+    "url": "https://libraries.minecraft.net/org/ow2/asm/asm-all/5.0.3/asm-all-5.0.3.jar",
+    "checksums": [
+      "4333508b8dd8ee72aa4e39afa713b3a74579b773"
+    ],
+    "natives": false,
+    "mirrors": [
+      "https://maven.minecraftforge.net/",
+      "https://repo1.maven.org/maven2/",
+      "https://libraries.minecraft.net/"
+    ]
+  },
+  {
+    "key": "com.typesafe.akka:akka-actor_2.11",
+    "path": "com/typesafe/akka/akka-actor_2.11/2.3.3/akka-actor_2.11-2.3.3.jar",
+    "url": "https://maven.minecraftforge.net/com/typesafe/akka/akka-actor_2.11/2.3.3/akka-actor_2.11-2.3.3.jar",
+    "checksums": [
+      "ed62e9fc709ca0f2ff1a3220daa8b70a2870078e",
+      "25a86ccfdb6f6dfe08971f4825d0a01be83a6f2e"
+    ],
+    "natives": false,
+    "mirrors": [
+      "https://maven.minecraftforge.net/",
+      "https://repo1.maven.org/maven2/",
+      "https://libraries.minecraft.net/"
+    ]
+  },
+  {
+    "key": "com.typesafe:config",
+    "path": "com/typesafe/config/1.2.1/config-1.2.1.jar",
+    "url": "https://maven.minecraftforge.net/com/typesafe/config/1.2.1/config-1.2.1.jar",
+    "checksums": [
+      "f771f71fdae3df231bcd54d5ca2d57f0bf93f467",
+      "7d7bc36df0989d72f2d5d057309675777acc528b"
+    ],
+    "natives": false,
+    "mirrors": [
+      "https://maven.minecraftforge.net/",
+      "https://repo1.maven.org/maven2/",
+      "https://libraries.minecraft.net/"
+    ]
+  },
+  {
+    "key": "org.scala-lang:scala-actors-migration_2.11",
+    "path": "org/scala-lang/scala-actors-migration_2.11/1.1.0/scala-actors-migration_2.11-1.1.0.jar",
+    "url": "https://maven.minecraftforge.net/org/scala-lang/scala-actors-migration_2.11/1.1.0/scala-actors-migration_2.11-1.1.0.jar",
+    "checksums": [
+      "dfa8bc42b181d5b9f1a5dd147f8ae308b893eb6f",
+      "8c9aaeeb68487ca519411a14068e1b4d69739207"
+    ],
+    "natives": false,
+    "mirrors": [
+      "https://maven.minecraftforge.net/",
+      "https://repo1.maven.org/maven2/",
+      "https://libraries.minecraft.net/"
+    ]
+  },
+  {
+    "key": "org.scala-lang:scala-compiler",
+    "path": "org/scala-lang/scala-compiler/2.11.1/scala-compiler-2.11.1.jar",
+    "url": "https://maven.minecraftforge.net/org/scala-lang/scala-compiler/2.11.1/scala-compiler-2.11.1.jar",
+    "checksums": [
+      "56ea2e6c025e0821f28d73ca271218b8dd04926a",
+      "1444992390544ba3780867a13ff696a89d7d1639"
+    ],
+    "natives": false,
+    "mirrors": [
+      "https://maven.minecraftforge.net/",
+      "https://repo1.maven.org/maven2/",
+      "https://libraries.minecraft.net/"
+    ]
+  },
+  {
+    "key": "org.scala-lang.plugins:scala-continuations-library_2.11",
+    "path": "org/scala-lang/plugins/scala-continuations-library_2.11/1.0.2/scala-continuations-library_2.11-1.0.2.jar",
+    "url": "https://maven.minecraftforge.net/org/scala-lang/plugins/scala-continuations-library_2.11/1.0.2/scala-continuations-library_2.11-1.0.2.jar",
+    "checksums": [
+      "0e517c53a7e9acd6b1668c5a35eccbaa3bab9aac"
+    ],
+    "natives": false,
+    "mirrors": [
+      "https://maven.minecraftforge.net/",
+      "https://repo1.maven.org/maven2/",
+      "https://libraries.minecraft.net/"
+    ]
+  },
+  {
+    "key": "org.scala-lang.plugins:scala-continuations-plugin_2.11.1",
+    "path": "org/scala-lang/plugins/scala-continuations-plugin_2.11.1/1.0.2/scala-continuations-plugin_2.11.1-1.0.2.jar",
+    "url": "https://maven.minecraftforge.net/org/scala-lang/plugins/scala-continuations-plugin_2.11.1/1.0.2/scala-continuations-plugin_2.11.1-1.0.2.jar",
+    "checksums": [
+      "f361a3283452c57fa30c1ee69448995de23c60f7"
+    ],
+    "natives": false,
+    "mirrors": [
+      "https://maven.minecraftforge.net/",
+      "https://repo1.maven.org/maven2/",
+      "https://libraries.minecraft.net/"
+    ]
+  },
+  {
+    "key": "org.scala-lang:scala-library",
+    "path": "org/scala-lang/scala-library/2.11.1/scala-library-2.11.1.jar",
+    "url": "https://maven.minecraftforge.net/org/scala-lang/scala-library/2.11.1/scala-library-2.11.1.jar",
+    "checksums": [
+      "0e11da23da3eabab9f4777b9220e60d44c1aab6a",
+      "1e4df76e835201c6eabd43adca89ab11f225f134"
+    ],
+    "natives": false,
+    "mirrors": [
+      "https://maven.minecraftforge.net/",
+      "https://repo1.maven.org/maven2/",
+      "https://libraries.minecraft.net/"
+    ]
+  },
+  {
+    "key": "org.scala-lang:scala-parser-combinators_2.11",
+    "path": "org/scala-lang/scala-parser-combinators_2.11/1.0.1/scala-parser-combinators_2.11-1.0.1.jar",
+    "url": "https://maven.minecraftforge.net/org/scala-lang/scala-parser-combinators_2.11/1.0.1/scala-parser-combinators_2.11-1.0.1.jar",
+    "checksums": [
+      "f05d7345bf5a58924f2837c6c1f4d73a938e1ff0",
+      "a1cbbcbde1dcc614f4253ed1aa0b320bc78d8f1d"
+    ],
+    "natives": false,
+    "mirrors": [
+      "https://maven.minecraftforge.net/",
+      "https://repo1.maven.org/maven2/",
+      "https://libraries.minecraft.net/"
+    ]
+  },
+  {
+    "key": "org.scala-lang:scala-reflect",
+    "path": "org/scala-lang/scala-reflect/2.11.1/scala-reflect-2.11.1.jar",
+    "url": "https://maven.minecraftforge.net/org/scala-lang/scala-reflect/2.11.1/scala-reflect-2.11.1.jar",
+    "checksums": [
+      "6580347e61cc7f8e802941e7fde40fa83b8badeb",
+      "91ce0f0be20f4a536321724b4b3bbc6530ddcd88"
+    ],
+    "natives": false,
+    "mirrors": [
+      "https://maven.minecraftforge.net/",
+      "https://repo1.maven.org/maven2/",
+      "https://libraries.minecraft.net/"
+    ]
+  },
+  {
+    "key": "org.scala-lang:scala-swing_2.11",
+    "path": "org/scala-lang/scala-swing_2.11/1.0.1/scala-swing_2.11-1.0.1.jar",
+    "url": "https://maven.minecraftforge.net/org/scala-lang/scala-swing_2.11/1.0.1/scala-swing_2.11-1.0.1.jar",
+    "checksums": [
+      "b1cdd92bd47b1e1837139c1c53020e86bb9112ae",
+      "d77152691dcf5bbdb00529af37aa7d3d887b3e63"
+    ],
+    "natives": false,
+    "mirrors": [
+      "https://maven.minecraftforge.net/",
+      "https://repo1.maven.org/maven2/",
+      "https://libraries.minecraft.net/"
+    ]
+  },
+  {
+    "key": "org.scala-lang:scala-xml_2.11",
+    "path": "org/scala-lang/scala-xml_2.11/1.0.2/scala-xml_2.11-1.0.2.jar",
+    "url": "https://maven.minecraftforge.net/org/scala-lang/scala-xml_2.11/1.0.2/scala-xml_2.11-1.0.2.jar",
+    "checksums": [
+      "7a80ec00aec122fba7cd4e0d4cdd87ff7e4cb6d0",
+      "62736b01689d56b6d09a0164b7ef9da2b0b9633d"
+    ],
+    "natives": false,
+    "mirrors": [
+      "https://maven.minecraftforge.net/",
+      "https://repo1.maven.org/maven2/",
+      "https://libraries.minecraft.net/"
+    ]
+  },
+  {
+    "key": "lzma:lzma",
+    "path": "lzma/lzma/0.0.1/lzma-0.0.1.jar",
+    "url": "https://libraries.minecraft.net/lzma/lzma/0.0.1/lzma-0.0.1.jar",
+    "checksums": [
+      "521616dc7487b42bef0e803bd2fa3faf668101d7"
+    ],
+    "natives": false,
+    "mirrors": [
+      "https://maven.minecraftforge.net/",
+      "https://repo1.maven.org/maven2/",
+      "https://libraries.minecraft.net/"
+    ]
+  },
+  {
+    "key": "net.sf.jopt-simple:jopt-simple",
+    "path": "net/sf/jopt-simple/jopt-simple/4.6/jopt-simple-4.6.jar",
+    "url": "https://libraries.minecraft.net/net/sf/jopt-simple/jopt-simple/4.6/jopt-simple-4.6.jar",
+    "checksums": [
+      "306816fb57cf94f108a43c95731b08934dcae15c"
+    ],
+    "natives": false,
+    "mirrors": [
+      "https://maven.minecraftforge.net/",
+      "https://repo1.maven.org/maven2/",
+      "https://libraries.minecraft.net/"
+    ]
+  },
+  {
+    "key": "java3d:vecmath",
+    "path": "java3d/vecmath/1.5.2/vecmath-1.5.2.jar",
+    "url": "https://libraries.minecraft.net/java3d/vecmath/1.5.2/vecmath-1.5.2.jar",
+    "checksums": [
+      "79846ba34cbd89e2422d74d53752f993dcc2ccaf"
+    ],
+    "natives": false,
+    "mirrors": [
+      "https://maven.minecraftforge.net/",
+      "https://repo1.maven.org/maven2/",
+      "https://libraries.minecraft.net/"
+    ]
+  },
+  {
+    "key": "net.sf.trove4j:trove4j",
+    "path": "net/sf/trove4j/trove4j/3.0.3/trove4j-3.0.3.jar",
+    "url": "https://libraries.minecraft.net/net/sf/trove4j/trove4j/3.0.3/trove4j-3.0.3.jar",
+    "checksums": [
+      "42ccaf4761f0dfdfa805c9e340d99a755907e2dd"
+    ],
+    "natives": false,
+    "mirrors": [
+      "https://maven.minecraftforge.net/",
+      "https://repo1.maven.org/maven2/",
+      "https://libraries.minecraft.net/"
+    ]
+  },
+  {
+    "key": "com.mojang:netty",
+    "path": "com/mojang/netty/1.8.8/netty-1.8.8.jar",
+    "url": "https://libraries.minecraft.net/com/mojang/netty/1.8.8/netty-1.8.8.jar",
+    "checksums": [
+      "0a796914d1c8a55b4da9f4a8856dd9623375d8bb"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "oshi-project:oshi-core",
+    "path": "oshi-project/oshi-core/1.1/oshi-core-1.1.jar",
+    "url": "https://libraries.minecraft.net/oshi-project/oshi-core/1.1/oshi-core-1.1.jar",
+    "checksums": [
+      "9ddf7b048a8d701be231c0f4f95fd986198fd2d8"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "net.java.dev.jna:jna",
+    "path": "net/java/dev/jna/jna/3.4.0/jna-3.4.0.jar",
+    "url": "https://libraries.minecraft.net/net/java/dev/jna/jna/3.4.0/jna-3.4.0.jar",
+    "checksums": [
+      "803ff252fedbd395baffd43b37341dc4a150a554"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "net.java.dev.jna:platform",
+    "path": "net/java/dev/jna/platform/3.4.0/platform-3.4.0.jar",
+    "url": "https://libraries.minecraft.net/net/java/dev/jna/platform/3.4.0/platform-3.4.0.jar",
+    "checksums": [
+      "e3f70017be8100d3d6923f50b3d2ee17714e9c13"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "com.ibm.icu:icu4j-core-mojang",
+    "path": "com/ibm/icu/icu4j-core-mojang/51.2/icu4j-core-mojang-51.2.jar",
+    "url": "https://libraries.minecraft.net/com/ibm/icu/icu4j-core-mojang/51.2/icu4j-core-mojang-51.2.jar",
+    "checksums": [
+      "63d216a9311cca6be337c1e458e587f99d382b84"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "com.paulscode:codecjorbis",
+    "path": "com/paulscode/codecjorbis/20101023/codecjorbis-20101023.jar",
+    "url": "https://libraries.minecraft.net/com/paulscode/codecjorbis/20101023/codecjorbis-20101023.jar",
+    "checksums": [
+      "c73b5636faf089d9f00e8732a829577de25237ee"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "com.paulscode:codecwav",
+    "path": "com/paulscode/codecwav/20101023/codecwav-20101023.jar",
+    "url": "https://libraries.minecraft.net/com/paulscode/codecwav/20101023/codecwav-20101023.jar",
+    "checksums": [
+      "12f031cfe88fef5c1dd36c563c0a3a69bd7261da"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "com.paulscode:libraryjavasound",
+    "path": "com/paulscode/libraryjavasound/20101123/libraryjavasound-20101123.jar",
+    "url": "https://libraries.minecraft.net/com/paulscode/libraryjavasound/20101123/libraryjavasound-20101123.jar",
+    "checksums": [
+      "5c5e304366f75f9eaa2e8cca546a1fb6109348b3"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "com.paulscode:librarylwjglopenal",
+    "path": "com/paulscode/librarylwjglopenal/20100824/librarylwjglopenal-20100824.jar",
+    "url": "https://libraries.minecraft.net/com/paulscode/librarylwjglopenal/20100824/librarylwjglopenal-20100824.jar",
+    "checksums": [
+      "73e80d0794c39665aec3f62eee88ca91676674ef"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "com.paulscode:soundsystem",
+    "path": "com/paulscode/soundsystem/20120107/soundsystem-20120107.jar",
+    "url": "https://libraries.minecraft.net/com/paulscode/soundsystem/20120107/soundsystem-20120107.jar",
+    "checksums": [
+      "419c05fe9be71f792b2d76cfc9b67f1ed0fec7f6"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "io.netty:netty-all",
+    "path": "io/netty/netty-all/4.0.23.Final/netty-all-4.0.23.Final.jar",
+    "url": "https://libraries.minecraft.net/io/netty/netty-all/4.0.23.Final/netty-all-4.0.23.Final.jar",
+    "checksums": [
+      "0294104aaf1781d6a56a07d561e792c5d0c95f45"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "com.google.guava:guava",
+    "path": "com/google/guava/guava/17.0/guava-17.0.jar",
+    "url": "https://libraries.minecraft.net/com/google/guava/guava/17.0/guava-17.0.jar",
+    "checksums": [
+      "9c6ef172e8de35fd8d4d8783e4821e57cdef7445"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "org.apache.commons:commons-lang3",
+    "path": "org/apache/commons/commons-lang3/3.3.2/commons-lang3-3.3.2.jar",
+    "url": "https://libraries.minecraft.net/org/apache/commons/commons-lang3/3.3.2/commons-lang3-3.3.2.jar",
+    "checksums": [
+      "90a3822c38ec8c996e84c16a3477ef632cbc87a3"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "commons-io:commons-io",
+    "path": "commons-io/commons-io/2.4/commons-io-2.4.jar",
+    "url": "https://libraries.minecraft.net/commons-io/commons-io/2.4/commons-io-2.4.jar",
+    "checksums": [
+      "b1b6ea3b7e4aa4f492509a4952029cd8e48019ad"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "commons-codec:commons-codec",
+    "path": "commons-codec/commons-codec/1.9/commons-codec-1.9.jar",
+    "url": "https://libraries.minecraft.net/commons-codec/commons-codec/1.9/commons-codec-1.9.jar",
+    "checksums": [
+      "9ce04e34240f674bc72680f8b843b1457383161a"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "net.java.jinput:jinput",
+    "path": "net/java/jinput/jinput/2.0.5/jinput-2.0.5.jar",
+    "url": "https://libraries.minecraft.net/net/java/jinput/jinput/2.0.5/jinput-2.0.5.jar",
+    "checksums": [
+      "39c7796b469a600f72380316f6b1f11db6c2c7c4"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "net.java.jutils:jutils",
+    "path": "net/java/jutils/jutils/1.0.0/jutils-1.0.0.jar",
+    "url": "https://libraries.minecraft.net/net/java/jutils/jutils/1.0.0/jutils-1.0.0.jar",
+    "checksums": [
+      "e12fe1fda814bd348c1579329c86943d2cd3c6a6"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "com.google.code.gson:gson",
+    "path": "com/google/code/gson/gson/2.2.4/gson-2.2.4.jar",
+    "url": "https://libraries.minecraft.net/com/google/code/gson/gson/2.2.4/gson-2.2.4.jar",
+    "checksums": [
+      "a60a5e993c98c864010053cb901b7eab25306568"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "com.mojang:authlib",
+    "path": "com/mojang/authlib/1.5.21/authlib-1.5.21.jar",
+    "url": "https://libraries.minecraft.net/com/mojang/authlib/1.5.21/authlib-1.5.21.jar",
+    "checksums": [
+      "aefba0d5b53fbcb70860bc8046ab95d5854c07a5"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "com.mojang:realms",
+    "path": "com/mojang/realms/1.7.59/realms-1.7.59.jar",
+    "url": "https://libraries.minecraft.net/com/mojang/realms/1.7.59/realms-1.7.59.jar",
+    "checksums": [
+      "9c6c59b742d8e038a15f64c1aa273a893a658424"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "org.apache.commons:commons-compress",
+    "path": "org/apache/commons/commons-compress/1.8.1/commons-compress-1.8.1.jar",
+    "url": "https://libraries.minecraft.net/org/apache/commons/commons-compress/1.8.1/commons-compress-1.8.1.jar",
+    "checksums": [
+      "a698750c16740fd5b3871425f4cb3bbaa87f529d"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "org.apache.httpcomponents:httpclient",
+    "path": "org/apache/httpcomponents/httpclient/4.3.3/httpclient-4.3.3.jar",
+    "url": "https://libraries.minecraft.net/org/apache/httpcomponents/httpclient/4.3.3/httpclient-4.3.3.jar",
+    "checksums": [
+      "18f4247ff4572a074444572cee34647c43e7c9c7"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "commons-logging:commons-logging",
+    "path": "commons-logging/commons-logging/1.1.3/commons-logging-1.1.3.jar",
+    "url": "https://libraries.minecraft.net/commons-logging/commons-logging/1.1.3/commons-logging-1.1.3.jar",
+    "checksums": [
+      "f6f66e966c70a83ffbdb6f17a0919eaf7c8aca7f"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "org.apache.httpcomponents:httpcore",
+    "path": "org/apache/httpcomponents/httpcore/4.3.2/httpcore-4.3.2.jar",
+    "url": "https://libraries.minecraft.net/org/apache/httpcomponents/httpcore/4.3.2/httpcore-4.3.2.jar",
+    "checksums": [
+      "31fbbff1ddbf98f3aa7377c94d33b0447c646b6e"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "org.apache.logging.log4j:log4j-api",
+    "path": "org/apache/logging/log4j/log4j-api/2.0-beta9/log4j-api-2.0-beta9.jar",
+    "url": "https://libraries.minecraft.net/org/apache/logging/log4j/log4j-api/2.0-beta9/log4j-api-2.0-beta9.jar",
+    "checksums": [
+      "1dd66e68cccd907880229f9e2de1314bd13ff785"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "org.apache.logging.log4j:log4j-core",
+    "path": "org/apache/logging/log4j/log4j-core/2.0-beta9/log4j-core-2.0-beta9.jar",
+    "url": "https://libraries.minecraft.net/org/apache/logging/log4j/log4j-core/2.0-beta9/log4j-core-2.0-beta9.jar",
+    "checksums": [
+      "678861ba1b2e1fccb594bb0ca03114bb05da9695"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "org.lwjgl.lwjgl:lwjgl",
+    "path": "org/lwjgl/lwjgl/lwjgl/2.9.4-nightly-20150209/lwjgl-2.9.4-nightly-20150209.jar",
+    "url": "https://libraries.minecraft.net/org/lwjgl/lwjgl/lwjgl/2.9.4-nightly-20150209/lwjgl-2.9.4-nightly-20150209.jar",
+    "checksums": [
+      "697517568c68e78ae0b4544145af031c81082dfe"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "org.lwjgl.lwjgl:lwjgl_util",
+    "path": "org/lwjgl/lwjgl/lwjgl_util/2.9.4-nightly-20150209/lwjgl_util-2.9.4-nightly-20150209.jar",
+    "url": "https://libraries.minecraft.net/org/lwjgl/lwjgl/lwjgl_util/2.9.4-nightly-20150209/lwjgl_util-2.9.4-nightly-20150209.jar",
+    "checksums": [
+      "d51a7c040a721d13efdfbd34f8b257b2df882ad0"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "org.lwjgl.lwjgl:lwjgl-platform",
+    "path": "org/lwjgl/lwjgl/lwjgl-platform/2.9.4-nightly-20150209/lwjgl-platform-2.9.4-nightly-20150209.jar",
+    "url": "https://libraries.minecraft.net/org/lwjgl/lwjgl/lwjgl-platform/2.9.4-nightly-20150209/lwjgl-platform-2.9.4-nightly-20150209.jar",
+    "checksums": [
+      "b04f3ee8f5e43fa3b162981b50bb72fe1acabb33"
+    ],
+    "natives": false,
+    "mirrors": []
+  },
+  {
+    "key": "org.lwjgl.lwjgl:lwjgl-platform:natives-linux",
+    "path": "org/lwjgl/lwjgl/lwjgl-platform/2.9.4-nightly-20150209/lwjgl-platform-2.9.4-nightly-20150209-natives-linux.jar",
+    "url": "https://libraries.minecraft.net/org/lwjgl/lwjgl/lwjgl-platform/2.9.4-nightly-20150209/lwjgl-platform-2.9.4-nightly-20150209-natives-linux.jar",
+    "checksums": [
+      "931074f46c795d2f7b30ed6395df5715cfd7675b"
+    ],
+    "natives": true,
+    "mirrors": []
+  },
+  {
+    "key": "net.java.jinput:jinput-platform:natives-linux",
+    "path": "net/java/jinput/jinput-platform/2.0.5/jinput-platform-2.0.5-natives-linux.jar",
+    "url": "https://libraries.minecraft.net/net/java/jinput/jinput-platform/2.0.5/jinput-platform-2.0.5-natives-linux.jar",
+    "checksums": [
+      "7ff832a6eb9ab6a767f1ade2b548092d0fa64795"
+    ],
+    "natives": true,
+    "mirrors": []
+  },
+  {
+    "key": "tv.twitch:twitch",
+    "path": "tv/twitch/twitch/6.5/twitch-6.5.jar",
+    "url": "https://libraries.minecraft.net/tv/twitch/twitch/6.5/twitch-6.5.jar",
+    "checksums": [
+      "320a2dfd18513a5f41b4e75729df684488cbd925"
+    ],
+    "natives": false,
+    "mirrors": []
+  }
+]

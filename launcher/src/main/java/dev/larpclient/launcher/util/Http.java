@@ -13,7 +13,9 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
@@ -87,11 +89,20 @@ public final class Http {
      * @return true if a download happened
      */
     public static boolean download(String url, Path target, String sha1) throws IOException {
-        return download(url, target, sha1, Thread::sleep);
+        return download(url, target, sha1 == null ? List.of() : List.of(sha1), Thread::sleep);
+    }
+
+    /** Like {@link #download(String, Path, String)}, accepting a file that matches any of {@code accepted} (empty: no check). */
+    public static boolean download(String url, Path target, Collection<String> accepted) throws IOException {
+        return download(url, target, accepted, Thread::sleep);
     }
 
     static boolean download(String url, Path target, String sha1, Sleeper sleeper) throws IOException {
-        if (Files.isRegularFile(target) && (sha1 == null || sha1.equalsIgnoreCase(sha1(target)))) {
+        return download(url, target, sha1 == null ? List.of() : List.of(sha1), sleeper);
+    }
+
+    static boolean download(String url, Path target, Collection<String> accepted, Sleeper sleeper) throws IOException {
+        if (Files.isRegularFile(target) && matches(target, accepted)) {
             return false;
         }
         Files.createDirectories(target.toAbsolutePath().getParent());
@@ -103,7 +114,7 @@ public final class Http {
                     sleeper.sleep(backoffMillis(attempt));
                 }
                 try {
-                    fetch(url, tmp, sha1);
+                    fetch(url, tmp, accepted);
                     Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
                     return true;
                 } catch (HttpStatusException e) {
@@ -124,7 +135,20 @@ public final class Http {
         throw last;
     }
 
-    private static void fetch(String url, Path tmp, String sha1) throws IOException, InterruptedException {
+    private static boolean matches(Path file, Collection<String> accepted) throws IOException {
+        if (accepted.isEmpty()) {
+            return true;
+        }
+        String actual = sha1(file);
+        for (String expected : accepted) {
+            if (expected.equalsIgnoreCase(actual)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void fetch(String url, Path tmp, Collection<String> accepted) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .header("User-Agent", USER_AGENT).timeout(Duration.ofMinutes(5)).GET().build();
         HttpResponse<InputStream> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofInputStream());
@@ -134,7 +158,7 @@ public final class Http {
             }
             Files.copy(in, tmp, StandardCopyOption.REPLACE_EXISTING);
         }
-        if (sha1 != null && !sha1.equalsIgnoreCase(sha1(tmp))) {
+        if (!matches(tmp, accepted)) {
             throw new IOException("Checksum mismatch for " + url);
         }
     }

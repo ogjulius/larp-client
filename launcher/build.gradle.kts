@@ -51,6 +51,15 @@ tasks.withType<JavaCompile> {
 
 tasks.test {
     useJUnitPlatform()
+    // Fixtures and golden files shared with the Rust launcher (launcher-rs/).
+    val testdata = rootProject.file("testdata/launcher")
+    inputs.dir(testdata)
+    systemProperty("larp.testdata", testdata.absolutePath)
+    // ./gradlew :launcher:test -PupdateGolden  rewrites the golden files from the Java implementation.
+    if (project.hasProperty("updateGolden")) {
+        systemProperty("larp.updateGolden", "true")
+        outputs.upToDateWhen { false }
+    }
 }
 
 // Bundle the freshly built mod jar so the launcher can install it into the game instance.

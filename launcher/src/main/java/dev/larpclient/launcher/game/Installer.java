@@ -13,8 +13,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -40,6 +42,20 @@ public final class Installer {
     static final String FORGE_MAVEN = "https://maven.minecraftforge.net/";
     static final String MAVEN_CENTRAL = "https://repo1.maven.org/maven2/";
     static final String RESOURCES = "https://resources.download.minecraft.net/";
+    static final String FORGE_INSTALLER_SHA1 = "ec0293ff0776b8831f2ed90511bab76e635dda0c";
+
+    /**
+     * SHA-1s for libraries that neither Mojang's nor Forge's metadata gives a checksum for. The versions
+     * are fixed for 1.8.9; each hash was checked against the .sha1 files of every repository hosting it.
+     */
+    static final Map<String, String> PINNED_SHA1 = Map.of(
+            "net.minecraft:launchwrapper", "111e7bea9c968cdb3d06ef4632bf7ff0824d0f36",
+            "org.ow2.asm:asm-all", "4333508b8dd8ee72aa4e39afa713b3a74579b773",
+            "lzma:lzma", "521616dc7487b42bef0e803bd2fa3faf668101d7",
+            "java3d:vecmath", "79846ba34cbd89e2422d74d53752f993dcc2ccaf",
+            "net.sf.trove4j:trove4j", "42ccaf4761f0dfdfa805c9e340d99a755907e2dd",
+            "org.scala-lang.plugins:scala-continuations-library_2.11", "0e517c53a7e9acd6b1668c5a35eccbaa3bab9aac",
+            "org.scala-lang.plugins:scala-continuations-plugin_2.11.1", "f361a3283452c57fa30c1ee69448995de23c60f7");
 
     private final GameFiles files;
 
@@ -132,7 +148,7 @@ public final class Installer {
     private JsonObject installForge() throws IOException {
         String installerPath = Maven.path("net.minecraftforge:forge:" + FORGE_VERSION + ":installer");
         Path installer = files.library(installerPath);
-        Http.download(FORGE_MAVEN + installerPath, installer, null);
+        Http.download(FORGE_MAVEN + installerPath, installer, FORGE_INSTALLER_SHA1);
         try (ZipFile zip = new ZipFile(installer.toFile())) {
             ZipEntry profileEntry = zip.getEntry("install_profile.json");
             if (profileEntry == null) {
@@ -163,9 +179,25 @@ public final class Installer {
     // ------------------------------------------------------------------ libraries
 
     List<Library> resolveLibraries(JsonObject vanilla, JsonObject forgeInfo) {
-        String os = Platform.OS.mojangName;
-        String osVersion = System.getProperty("os.version");
+        String arch = System.getProperty("os.arch", "").contains("64") ? "64" : "32";
+        return resolveLibraries(vanilla, forgeInfo, Platform.OS.mojangName, System.getProperty("os.version"), arch);
+    }
+
+    /**
+     * Pure library resolution for the given platform ({@code os} is Mojang's name: linux / windows / osx,
+     * {@code arch} is "64" or "32"). Covered by golden files shared with the Rust launcher.
+     */
+    static List<Library> resolveLibraries(JsonObject vanilla, JsonObject forgeInfo, String os, String osVersion, String arch) {
         Map<String, Library> result = new LinkedHashMap<>();
+
+        // Checksums vanilla knows, by repository path: Forge lists some of the same files without one.
+        Map<String, String> vanillaSha1 = new HashMap<>();
+        for (JsonElement e : Json.arr(vanilla, "libraries")) {
+            JsonObject artifact = Json.obj(Json.obj(e.getAsJsonObject(), "downloads"), "artifact");
+            if (artifact != null && Json.str(artifact, "sha1") != null) {
+                vanillaSha1.put(Json.str(artifact, "path"), Json.str(artifact, "sha1"));
+            }
+        }
 
         String forgeCoordinate = "net.minecraftforge:forge:" + FORGE_VERSION;
         for (JsonElement e : Json.arr(forgeInfo, "libraries")) {
@@ -177,18 +209,28 @@ public final class Installer {
             String path = Maven.path(name);
             if (name.equals(forgeCoordinate)) {
                 // extracted from the installer, nothing to download
-                result.put(Maven.key(name), new Library(Maven.key(name), path, null, null, false));
+                result.put(Maven.key(name), new Library(Maven.key(name), path, null, List.of(), false));
                 continue;
             }
             String base = Json.str(lib, "url", MOJANG_LIBRARIES).replace("http://files.minecraftforge.net/maven/", FORGE_MAVEN);
             if (!base.endsWith("/")) {
                 base += "/";
             }
-            result.put(Maven.key(name), new Library(Maven.key(name), path, base + path, null, false,
+            List<String> checksums = new ArrayList<>();
+            if (vanillaSha1.containsKey(path)) {
+                checksums.add(vanillaSha1.get(path));
+            } else {
+                for (JsonElement c : Json.arr(lib, "checksums")) {
+                    checksums.add(c.getAsString().toLowerCase(Locale.ROOT));
+                }
+                if (checksums.isEmpty() && PINNED_SHA1.containsKey(Maven.key(name))) {
+                    checksums.add(PINNED_SHA1.get(Maven.key(name)));
+                }
+            }
+            result.put(Maven.key(name), new Library(Maven.key(name), path, base + path, checksums, false,
                     FORGE_MAVEN, MAVEN_CENTRAL, MOJANG_LIBRARIES));
         }
 
-        String arch = System.getProperty("os.arch", "").contains("64") ? "64" : "32";
         for (JsonElement e : Json.arr(vanilla, "libraries")) {
             JsonObject lib = e.getAsJsonObject();
             if (!Rules.allowed(Json.arr(lib, "rules"), os, osVersion)) {
@@ -199,7 +241,7 @@ public final class Installer {
             JsonObject artifact = Json.obj(downloads, "artifact");
             if (artifact != null && !result.containsKey(Maven.key(name))) {
                 result.put(Maven.key(name), new Library(Maven.key(name), Json.str(artifact, "path"),
-                        Json.str(artifact, "url"), Json.str(artifact, "sha1"), false));
+                        Json.str(artifact, "url"), checksums(artifact), false));
             }
             JsonObject natives = Json.obj(lib, "natives");
             if (natives != null && natives.has(os)) {
@@ -208,11 +250,16 @@ public final class Installer {
                 if (nativeArtifact != null) {
                     String key = Maven.key(name) + ":" + classifier;
                     result.put(key, new Library(key, Json.str(nativeArtifact, "path"),
-                            Json.str(nativeArtifact, "url"), Json.str(nativeArtifact, "sha1"), true));
+                            Json.str(nativeArtifact, "url"), checksums(nativeArtifact), true));
                 }
             }
         }
         return new ArrayList<>(result.values());
+    }
+
+    private static List<String> checksums(JsonObject artifact) {
+        String sha1 = Json.str(artifact, "sha1");
+        return sha1 == null ? List.of() : List.of(sha1.toLowerCase(Locale.ROOT));
     }
 
     private void downloadLibrary(Library library) throws IOException {
@@ -224,11 +271,11 @@ public final class Installer {
             return;
         }
         try {
-            Http.download(library.url, target, library.sha1);
+            Http.download(library.url, target, library.checksums);
         } catch (Http.HttpStatusException primary) {
             for (String mirror : library.mirrors) {
                 try {
-                    Http.download(mirror + library.path, target, library.sha1);
+                    Http.download(mirror + library.path, target, library.checksums);
                     return;
                 } catch (Http.HttpStatusException ignored) {
                     // try next mirror

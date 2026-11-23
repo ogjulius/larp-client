@@ -104,6 +104,12 @@ public final class GameLauncher {
     }
 
     public List<String> buildCommand(InstalledGame game, Account account, LauncherSettings settings, Path java) {
+        return buildCommand(game, account, settings, java, classpath(game), Platform.classpathSeparator());
+    }
+
+    /** Pure command construction. Covered by golden files shared with the Rust launcher. */
+    List<String> buildCommand(InstalledGame game, Account account, LauncherSettings settings, Path java,
+                              List<Path> classpath, String separator) {
         List<String> cmd = new ArrayList<>();
         cmd.add(java.toString());
         cmd.add("-Xmx" + settings.memoryMb + "M");
@@ -122,7 +128,7 @@ public final class GameLauncher {
             cmd.add(game.loggingArgument.replace("${path}", game.loggingConfig.toString()));
         }
         cmd.add("-cp");
-        cmd.add(classpath(game).stream().map(Path::toString).collect(Collectors.joining(Platform.classpathSeparator())));
+        cmd.add(classpath.stream().map(Path::toString).collect(Collectors.joining(separator)));
         cmd.add(game.mainClass);
 
         Map<String, String> vars = new HashMap<>();
