@@ -3,7 +3,10 @@
 #   1. `larp-client --install-only` installs Minecraft 1.8.9 + Forge into a throwaway directory;
 #   2. a second run over the finished install still succeeds;
 #   3. `larp-client --launch --offline Dev` boots the game under Xvfb with the LARP mod loaded,
-#      runs the mod's screenshot tour (-Dlarp.screenshotTour=true) and quits cleanly.
+#      runs the mod's screenshot tour (-Dlarp.screenshotTour=true) and quits cleanly;
+#   4. the graphical launcher does the same when Launch is pressed (crates/larp-app/tests/launch.rs:
+#      once with the launcher staying open, once handing the game off and closing). Skip this step
+#      with LARP_E2E_SKIP_GUI=1, e.g. when only a launcher binary is available.
 #
 # Needs: a release build with the bundle embedded (./gradlew :launcher:rustBundle, then
 # cargo build --release -p larp-cli), Java 8 in $JAVA_HOME or a standard location (else Mojang's runtime is downloaded), xvfb-run, network.
@@ -17,6 +20,7 @@ bin=$(cd "$(dirname "$bin")" && pwd)/$(basename "$bin")
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/larp-e2e.XXXXXX")
 trap 'rm -rf "$work"' EXIT
+real_home=$HOME # cargo and rustup live there (step 4)
 export HOME=$work XDG_DATA_HOME=$work/data XDG_CONFIG_HOME=$work/config
 game=$XDG_DATA_HOME/larpclient
 mkdir -p "$XDG_CONFIG_HOME/larpclient"
@@ -59,5 +63,13 @@ for i in 0 1 2 3 4; do
 done
 if grep -E "Exception|Caused by" "$work/launch.log" | grep -vE "twitch|Couldn't initialize" | grep -q .; then
     fail "the game log contains exceptions"
+fi
+if [[ -z ${LARP_E2E_SKIP_GUI:-} ]]; then
+    echo "e2e: graphical launcher"
+    # Reuses the install from step 1. The tests have their own config directories.
+    HOME=$real_home LARP_E2E_ROOT=$game timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" \
+        cargo test --release --locked --manifest-path "$here/Cargo.toml" -p larp-app --test launch \
+        -- --ignored --test-threads=1 >"$work/gui.log" 2>&1 || fail "graphical launcher tests failed"
+    expect gui.log "test result: ok. 2 passed"
 fi
 echo "e2e: OK"

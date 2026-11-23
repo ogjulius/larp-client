@@ -127,9 +127,13 @@ exit 3"#,
         let cmd = configure(&[java], &dir.path().join("instance"), Os::Linux, true).unwrap();
         let lines = Arc::new(Mutex::new(Vec::new()));
         let sink = lines.clone();
-        let status = run_attached(cmd, Arc::new(move |l: &str| sink.lock().unwrap().push(l.to_owned())), true)
-            .await
-            .unwrap();
+        let status = run_attached(
+            cmd,
+            Arc::new(move |l: &str| sink.lock().unwrap().push(l.to_owned())),
+            true,
+        )
+        .await
+        .unwrap();
         assert_eq!(status.code(), Some(3));
         let lines = lines.lock().unwrap();
         assert!(

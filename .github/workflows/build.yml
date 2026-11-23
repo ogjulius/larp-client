@@ -39,12 +39,22 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: launcher-rs
+      - name: Install GUI build dependencies and a software GPU
+        # egui/winit headers; Mesa's lavapipe renders the UI snapshot tests without a GPU.
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev mesa-vulkan-drivers
+        working-directory: .
       - name: Format
         run: cargo fmt --all --check
       - name: Clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Test
         run: cargo test --workspace --locked
+      - name: Keep snapshot diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot-diffs
+          path: launcher-rs/crates/*/tests/snapshots/*.diff.png
 
   # Phase 2 exit criterion: the Rust launcher installs the game and boots it with the mod loaded.
   rust-e2e:
@@ -63,8 +73,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: launcher-rs
-      - name: Install Xvfb
-        run: sudo apt-get update && sudo apt-get install -y xvfb
+      - name: Install Xvfb and GUI dependencies
+        run: sudo apt-get update && sudo apt-get install -y xvfb libxkbcommon-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev mesa-vulkan-drivers
       - name: Build the bundle
         run: ./gradlew :launcher:rustBundle --console=plain
       - name: Build the launcher

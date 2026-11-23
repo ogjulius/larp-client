@@ -1,7 +1,7 @@
 # Rebuild Plan
 
-Status: **Option B chosen** (2026-11-23). Phase 1 done (TECHNICAL_AUDIT.md §7). Phase 2 done: see the
-status note under Phase 2 below.
+Status: **Option B chosen** (2026-11-23). Phase 1 done (TECHNICAL_AUDIT.md §7). Phase 2 done. Phase 3
+in progress: see the status notes under each phase below.
 
 ## 1. The central finding
 
@@ -65,6 +65,34 @@ Each phase ends with its exit criteria green in CI. No phase starts on a red bui
 - Rebuild Home / Accounts / Settings / Console with the existing design language: palette (`ui/Palette`), Inter, nav rail, starry backdrop, launch button states.
 - Screenshot comparison against the Java launcher at fixed sizes. The visual differences get reviewed by a human, not auto-accepted.
 - **Exit**: feature-parity checklist (FEATURE_PARITY.md, launcher section) all ✅, with RSS and cold start measured and recorded.
+- **Toolkit trial (2026-11-23, Hyprland, RTX 2060)**, measured on a fixed 1080×680 window with the panning backdrop:
+
+  | Candidate | Native Wayland, floats | PSS | CPU, 30 fps pan | First frame |
+  |---|---|---|---|---|
+  | egui (OpenGL) | yes | ~47–62 MB | ~3% | ~0.1 s |
+  | iced (wgpu) | yes | 92–142 MB | not measured | 0.25–0.43 s |
+  | iced (tiny-skia, CPU) | yes | 14–35 MB | 15–20% even at 6 fps (image drawing ~26 ns/px) | ~0.02 s |
+
+  The user chose **egui**, keeping the pan. Slint was not tried: GPL or a royalty-free licence with attribution terms, a worse fit for this MIT project.
+- **Status (2026-11-23)**: built and working, not yet exited. `larp-client` without arguments opens the egui launcher (crate `larp-app`). Covered by 23 unit tests, 9 UI tests driven through the accessibility tree with snapshots of every page and dialog, and 2 end-to-end tests that press Launch and boot the game with the mod (attached, and detached with the launcher closing). The end-to-end tests run in `scripts/e2e.sh`, which passes locally. Measured against the Java launcher on the same machine (3 runs each, Home page animating):
+
+  | | Rust (egui) | Java (Swing) |
+  |---|---|---|
+  | Exec to window on screen | 0.50–0.64 s | 3.5–4.0 s |
+  | Private memory | ~45 MB | 99–118 MB |
+  | RSS | ~140 MB | 136–154 MB |
+  | CPU | 3.8–6.0% | 4.0–7.1% |
+
+  RSS is not the hoped-for ~30 MB. About 85 MB of it is the NVIDIA OpenGL driver mapped into the process, the price of the GPU pan. Ten minutes idle on Home: no memory growth, 2.3% CPU on average. (The end-of-run RSS was lower, but concurrent compilation was reclaiming pages at the time, so that figure is not a result.)
+
+  Left before exit:
+  1. Human review of `screenshots/` (Java vs Rust per page). Known difference: toggle switches instead of Java's checkboxes.
+  2. Test on Sway, KDE and GNOME (only Hyprland is available on the development machine).
+  3. A first CI run. UI snapshots were recorded on NVIDIA; CI renders with Mesa lavapipe and must match within egui's default tolerance.
+  4. Live Microsoft sign-in, which needs the approved Azure client ID; the flow is tested against a mock server.
+  5. The OS keyring for refresh tokens, deliberately deferred to Phase 4: both launchers must read the same `accounts.json` while they ship side by side.
+
+  Found on the way: A20, the Java Settings page overflowing the window, now fixed with a regression test.
 
 ### Phase 4: Cut-over
 - Release both launchers side by side for one version, then make the Rust launcher the default. The Java launcher is removed one release later.
