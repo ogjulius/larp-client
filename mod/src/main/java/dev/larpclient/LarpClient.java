@@ -98,6 +98,7 @@ public final class LarpClient {
         new dev.larpclient.core.Onboarding(dataDir, events, menuKey, dev.larpclient.modules.utility.Zoom.KEY);
         dev.larpclient.core.dev.ScreenshotTour.installIfRequested();
         dev.larpclient.core.dev.FullscreenProbe.installIfRequested();
+        dev.larpclient.core.dev.InputProbe.installIfRequested();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             config.save();
             music.save();

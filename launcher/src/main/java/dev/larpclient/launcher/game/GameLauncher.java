@@ -87,6 +87,23 @@ public final class GameLauncher {
                 "guiScale:0", "") );
     }
 
+    /** The game classpath, with LWJGL swapped for the XWayland mouse fix on Linux (see {@link LwjglMousePatch}). */
+    private List<Path> classpath(InstalledGame game) {
+        Path lwjgl = Platform.OS == Platform.Os.LINUX ? LwjglMousePatch.findLwjgl(game.classpath) : null;
+        if (lwjgl == null) {
+            return game.classpath;
+        }
+        try {
+            Path patched = LwjglMousePatch.prepare(lwjgl, files.root.resolve("patches"));
+            List<Path> cp = new ArrayList<>(game.classpath);
+            cp.set(cp.indexOf(lwjgl), patched);
+            return cp;
+        } catch (IOException | RuntimeException e) {
+            System.err.println("[larp] LWJGL mouse patch unavailable, mouse may lag under XWayland: " + e);
+            return game.classpath;
+        }
+    }
+
     public List<String> buildCommand(InstalledGame game, Account account, LauncherSettings settings, Path java) {
         List<String> cmd = new ArrayList<>();
         cmd.add(java.toString());
@@ -108,7 +125,7 @@ public final class GameLauncher {
             cmd.add(game.loggingArgument.replace("${path}", game.loggingConfig.toString()));
         }
         cmd.add("-cp");
-        cmd.add(game.classpath.stream().map(Path::toString).collect(Collectors.joining(Platform.classpathSeparator())));
+        cmd.add(classpath(game).stream().map(Path::toString).collect(Collectors.joining(Platform.classpathSeparator())));
         cmd.add(game.mainClass);
 
         Map<String, String> vars = new HashMap<>();

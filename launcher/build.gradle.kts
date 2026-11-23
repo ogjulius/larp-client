@@ -17,8 +17,15 @@ repositories {
     mavenCentral()
 }
 
+// Classes that run inside the game JVM (Java 8), bundled as resources: see LwjglMousePatch.
+val gamepatch: SourceSet = sourceSets.create("gamepatch")
+tasks.named<JavaCompile>("compileGamepatchJava") {
+    options.release.set(8)
+}
+
 dependencies {
     implementation("com.formdev:flatlaf:3.4.1")
+    implementation("org.ow2.asm:asm:9.7")
     implementation("com.google.code.gson:gson:2.10.1")
 
     testImplementation(platform("org.junit:junit-bom:5.10.2"))
@@ -33,7 +40,9 @@ application {
 
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
-    options.release.set(17)
+    if (name != "compileGamepatchJava") {
+        options.release.set(17)
+    }
 }
 
 tasks.test {
@@ -47,6 +56,12 @@ tasks.processResources {
     from(modJar) {
         into("larp")
         rename { "larpclient.jar.bin" } // not ".jar": Shadow would unpack it
+    }
+    from(gamepatch.output.classesDirs) {
+        include("org/lwjgl/opengl/LarpWindowSizeCache.class")
+        into("larp/gamepatch")
+        eachFile { path = "larp/gamepatch/" + name + ".bin" } // keep it off the launcher's own classpath
+        includeEmptyDirs = false
     }
     inputs.property("version", project.version)
     filesMatching("larp/launcher.properties") {
