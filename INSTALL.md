@@ -15,6 +15,19 @@
 4. Click **Add account**, type a username, press **Enter**, then click **Launch**.
    The first launch downloads Minecraft 1.8.9, Forge and Java 8 (about 300 MB) and then starts the game.
 
+### Preview: native Linux launcher (no Java needed)
+
+The new launcher, written in Rust, starts in about half a second and uses less memory. It reads the
+same accounts and settings as the Java launcher, so you can switch between them freely. It is a
+preview: so far it has only been tested on Hyprland. Please report problems on other desktops.
+
+```sh
+chmod +x larp-client-0.2.0-linux-x86_64
+./larp-client-0.2.0-linux-x86_64
+```
+
+It needs glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36, Arch and newer) and OpenGL.
+
 ## Option B: build from source (Linux, adds an app-menu entry)
 
 ```sh
