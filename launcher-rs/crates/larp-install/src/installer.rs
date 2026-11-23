@@ -11,6 +11,11 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub const FORGE_VERSION: &str = "1.8.9-11.15.1.2318-1.8.9";
+
+/// `install_profile.json` from Forge's installer for [`FORGE_VERSION`] (byte-identical; checked by a test).
+/// Embedded so installing needs only the universal jar: Forge's server has served one file but not the
+/// other (2026-11-23: the installer 404'd while the universal jar downloaded fine).
+pub const FORGE_INSTALL_PROFILE: &str = include_str!("../data/forge-install_profile.json");
 const LIBRARY_DOWNLOADS: usize = 8;
 const ASSET_DOWNLOADS: usize = 16;
 
@@ -23,7 +28,11 @@ pub struct Endpoints {
     pub forge_maven: String,
     pub maven_central: String,
     pub resources: String,
-    /// The Forge installer is fetched by coordinate, so its hash is pinned here.
+    /// The Forge install profile (JSON); defaults to [`FORGE_INSTALL_PROFILE`].
+    pub forge_profile: String,
+    /// The universal jar is fetched by coordinate, so its hash is pinned here.
+    pub forge_universal_sha1: String,
+    /// The installer (fallback when the universal jar can't be downloaded) is pinned too.
     pub forge_installer_sha1: String,
 }
 
@@ -35,6 +44,8 @@ impl Default for Endpoints {
             forge_maven: "https://maven.minecraftforge.net/".into(),
             maven_central: "https://repo1.maven.org/maven2/".into(),
             resources: "https://resources.download.minecraft.net/".into(),
+            forge_profile: FORGE_INSTALL_PROFILE.into(),
+            forge_universal_sha1: "beda619c465af293e63952dd573c137c17c0a4cd".into(),
             forge_installer_sha1: "ec0293ff0776b8831f2ed90511bab76e635dda0c".into(),
         }
     }
@@ -223,8 +234,34 @@ impl Installer {
         json::parse(&text, "version JSON")
     }
 
-    /// Download the (pinned) Forge installer; extract the universal jar; return the install profile.
+    /// Download Forge's universal jar (pinned) and return the embedded install profile. If the jar can't
+    /// be downloaded, fall back to the installer, which contains both.
     async fn install_forge(&self) -> Result<Value, InstallError> {
+        let profile = json::parse(&self.endpoints.forge_profile, "Forge install profile")?;
+        let install = json::obj(&profile, "install")
+            .ok_or_else(|| InstallError::Metadata("Forge install profile has no install section".into()))?;
+        let coordinate = json::require(install, "path", "Forge install")?;
+        // The classpath wants the jar at the plain coordinate; Forge's Maven publishes it as ":universal".
+        let universal_path =
+            maven::path(coordinate).ok_or_else(|| InstallError::Metadata("bad Forge universal coordinate".into()))?;
+        let published = maven::path(&format!("{coordinate}:universal"))
+            .ok_or_else(|| InstallError::Metadata("bad Forge universal coordinate".into()))?;
+        let direct = self
+            .net
+            .download(
+                &format!("{}{published}", self.endpoints.forge_maven),
+                &self.files.library(&universal_path),
+                std::slice::from_ref(&self.endpoints.forge_universal_sha1),
+            )
+            .await;
+        match direct {
+            Ok(_) => Ok(profile),
+            Err(_) => self.install_forge_from_installer().await,
+        }
+    }
+
+    /// Download the (pinned) Forge installer; extract the universal jar; return the install profile.
+    async fn install_forge_from_installer(&self) -> Result<Value, InstallError> {
         let installer_path = maven::path(&format!("net.minecraftforge:forge:{FORGE_VERSION}:installer"))
             .ok_or_else(|| InstallError::Metadata("bad Forge coordinate".into()))?;
         let installer = self.files.library(&installer_path);
@@ -415,4 +452,18 @@ fn extract_natives(natives: &[PathBuf], dir: &Path) -> Result<(), InstallError> 
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sha1::{Digest, Sha1};
+
+    /// The embedded profile is exactly Forge's `install_profile.json` from the pinned installer.
+    #[test]
+    fn embedded_forge_profile_is_forges_own() {
+        let digest = Sha1::digest(FORGE_INSTALL_PROFILE.as_bytes());
+        let hex: String = digest.iter().map(|b| format!("{b:02x}")).collect();
+        assert_eq!(hex, "3e09d5e4bb9d716bf5b77ca1169d4854fa15e51e");
+    }
 }
