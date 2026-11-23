@@ -1,7 +1,7 @@
 # Rebuild Plan
 
 Status: **Option B chosen** (2026-11-23). Phase 1 done (TECHNICAL_AUDIT.md §7). Phase 2 done. Phase 3
-in progress: see the status notes under each phase below.
+done (Hyprland only; offline profiles only). Phase 4, the cut-over, is next. See the status notes under each phase below.
 
 ## 1. The central finding
 
@@ -74,7 +74,7 @@ Each phase ends with its exit criteria green in CI. No phase starts on a red bui
   | iced (tiny-skia, CPU) | yes | 14–35 MB | 15–20% even at 6 fps (image drawing ~26 ns/px) | ~0.02 s |
 
   The user chose **egui**, keeping the pan. Slint was not tried: GPL or a royalty-free licence with attribution terms, a worse fit for this MIT project.
-- **Status (2026-11-23)**: built and working, not yet exited. `larp-client` without arguments opens the egui launcher (crate `larp-app`). Covered by 23 unit tests, 9 UI tests driven through the accessibility tree with snapshots of every page and dialog, and 2 end-to-end tests that press Launch and boot the game with the mod (attached, and detached with the launcher closing). The end-to-end tests run in `scripts/e2e.sh`, which passes locally. Measured against the Java launcher on the same machine (3 runs each, Home page animating):
+- **Status (2026-11-23)**: **exited**. Every exit item below is done or dropped. `larp-client` without arguments opens the egui launcher (crate `larp-app`). Covered by 23 unit tests, 9 UI tests driven through the accessibility tree with snapshots of every page and dialog, and 2 end-to-end tests that press Launch and boot the game with the mod (attached, and detached with the launcher closing). The end-to-end tests run in `scripts/e2e.sh`, which passes locally. Measured against the Java launcher on the same machine (3 runs each, Home page animating):
 
   | | Rust (egui) | Java (Swing) |
   |---|---|---|
@@ -87,7 +87,7 @@ Each phase ends with its exit criteria green in CI. No phase starts on a red bui
 
   Exit items (updated 2026-11-23):
   1. ✅ Screenshot review (`screenshots/`, Java vs Rust per page), done by Claude at the user's request. Home and Console match. Accepted differences: toggle switches instead of checkboxes, plain number fields instead of spinners, the JVM arguments field shows its start, and the decimal separator ("3.0 GB" vs the Java launcher following the system locale). `accounts.png` was regenerated after the offline-only change, both sides rendered under Xvfb with the real game art.
-  2. ⏳ Test on Sway, KDE and GNOME. Still open: only Hyprland is installed, and installing compositors needs root. Each can run headless for a test (`WLR_BACKENDS=headless sway`, `kwin_wayland --virtual`, `mutter --headless`).
+  2. ➖ Dropped: the user targets Hyprland only (2026-11-23), where the launcher is built, tested and used daily. Sway, KDE and GNOME are not tested.
   3. ✅ CI: all jobs green on GitHub, including the UI snapshots under Mesa lavapipe (recorded on NVIDIA) and the end-to-end game boot on Ubuntu 22.04.
   4. ➖ Dropped: Microsoft sign-in was removed on 2026-11-23 (offline profiles only).
   5. ➖ Dropped: no tokens are stored any more, so no OS keyring is needed.
