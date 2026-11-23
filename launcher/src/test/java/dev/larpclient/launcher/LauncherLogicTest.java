@@ -40,7 +40,6 @@ class LauncherLogicTest {
         // Same algorithm as vanilla offline mode: UUID v3 of "OfflinePlayer:<name>".
         assertEquals("b50ad385829d3141a2167e7d7539ba7f", a.uuid);
         assertEquals("legacy", a.userType());
-        assertFalse(a.needsRefresh());
         assertTrue(Account.isValidUsername("Player_1"));
         assertFalse(Account.isValidUsername("ab"));
         assertFalse(Account.isValidUsername("has space"));

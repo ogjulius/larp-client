@@ -2,7 +2,6 @@ package dev.larpclient.launcher;
 
 import dev.larpclient.launcher.auth.Account;
 import dev.larpclient.launcher.auth.AccountStore;
-import dev.larpclient.launcher.auth.MicrosoftAuth;
 import dev.larpclient.launcher.config.LauncherSettings;
 import dev.larpclient.launcher.game.GameFiles;
 import dev.larpclient.launcher.game.GameLauncher;
@@ -94,12 +93,8 @@ final class Cli {
         } else {
             account = accounts.selected();
             if (account == null) {
-                System.err.println("No account selected; pass --offline NAME or add one in the GUI");
+                System.err.println("No profile selected; pass --offline NAME or add one in the GUI");
                 return 2;
-            }
-            if (account.needsRefresh()) {
-                new MicrosoftAuth(settings.microsoftClientId).refresh(account);
-                accounts.save();
             }
         }
         List<String> command = launcher.buildCommand(game, account, settings, java);

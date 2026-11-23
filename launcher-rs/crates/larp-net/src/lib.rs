@@ -56,24 +56,6 @@ impl Net {
         self.send(url, self.client.get(url)).await
     }
 
-    pub async fn get_text_bearer(&self, url: &str, bearer: &str) -> Result<String, NetError> {
-        self.send(url, self.client.get(url).bearer_auth(bearer)).await
-    }
-
-    pub async fn post_json(&self, url: &str, json: &str) -> Result<String, NetError> {
-        let request = self
-            .client
-            .post(url)
-            .header(reqwest::header::CONTENT_TYPE, "application/json")
-            .header(reqwest::header::ACCEPT, "application/json")
-            .body(json.to_owned());
-        self.send(url, request).await
-    }
-
-    pub async fn post_form(&self, url: &str, form: &[(&str, &str)]) -> Result<String, NetError> {
-        self.send(url, self.client.post(url).form(form)).await
-    }
-
     async fn send(&self, url: &str, request: reqwest::RequestBuilder) -> Result<String, NetError> {
         let request_error = |source| NetError::Request {
             url: url.to_owned(),

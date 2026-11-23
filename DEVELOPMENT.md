@@ -208,7 +208,7 @@ dev.larpclient.launcher
 │   ├── JavaRuntime       configured path → system Java 8 → Mojang "jre-legacy" download
 │   ├── GameLauncher      instance prep (mod jar, themed Forge splash), command line, process + log pump
 │   └── Log4jXmlFormatter turns Mojang's XML log output back into readable lines
-├── auth                  Account, AccountStore (0600 file), MicrosoftAuth (device code → XBL → XSTS → MC)
+├── auth                  Account (offline profiles), AccountStore (0600 file)
 ├── config                LauncherSettings
 └── ui                    LauncherFrame, Home/Accounts/Settings/Console pages, custom-painted components
 ```
@@ -225,18 +225,13 @@ Notes:
 - **Tiling WMs**: the window has a fixed size so Hyprland/Sway/i3 float it, and it re-asserts
   its size after mapping because XWayland initial size hints are sometimes ignored.
 
-### Microsoft sign-in
+### Accounts
 
-Microsoft login needs an Azure app registration whose client ID has been approved by Mojang for
-the Minecraft services API. New apps must apply at
-<https://aka.ms/mce-reviewappid>. Until then, `login_with_xbox` returns 403. To set it up:
-
-1. Register an app at <https://portal.azure.com> → *App registrations* (personal Microsoft accounts,
-   "Allow public client flows" = yes, no redirect URI needed for device code).
-2. Request Minecraft API access for that client ID.
-3. Paste the client ID in *Launcher → Settings → Microsoft sign-in*.
-
-Offline profiles work without any of this, for singleplayer and offline-mode servers.
+The launchers support offline (non-premium) profiles only. Microsoft sign-in was removed on 2026-11-23.
+An `accounts.json` entry of another type (a Microsoft account written by an older version) is loaded as
+an offline profile with the same name, and its tokens are dropped. Both launchers do this identically,
+checked by the `legacy-microsoft-accounts*.json` golden files. A `microsoftClientId` key in
+`launcher.json` is ignored and dropped on the next save.
 
 ## Adding a module
 

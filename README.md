@@ -25,7 +25,7 @@ A lightweight, Linux-first **PvP client for Minecraft 1.8.9**. It comes in two p
 
 **Launcher**
 - One click: installs and verifies everything (SHA-1 checked, parallel, resumable) and launches.
-- Microsoft accounts (device-code sign-in) and offline profiles.
+- Offline (non-premium) profiles: pick a username and play.
 - Memory, resolution, Java and JVM argument settings; live game console.
 - Headless mode: `larp-client --launch --offline Steve`.
 

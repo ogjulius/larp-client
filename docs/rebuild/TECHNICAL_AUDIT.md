@@ -111,8 +111,8 @@ Measured in-repo: the XWayland mouse fix (above). Not measured: launcher RSS and
 | A13 | Fixed | `c699fd4` | CI: `./gradlew build` fails on any compiler warning |
 | A14 | Fixed | `0378960` | `ModuleTest.policySuspensionIsTemporary`, `ConfigManagerTest.policySuspendedModuleIsSavedAsEnabled` |
 | A15 | Fixed | `b101a73` | `MusicPlayerTest.corruptPlaylistIsQuarantined`, `saveIsAtomicAndLeavesNoTempFile` |
-| A16 | Fixed | `998e94f` | `MicrosoftAuthTest.refreshWithoutNewRefreshTokenKeepsTheOldOne` |
-| A17 | Fixed | `998e94f` | `MicrosoftAuthTest.malformedResponsesFailCleanly` (+ 9 more sign-in flow tests) |
+| A16 | Fixed, then removed | `998e94f` | Was `MicrosoftAuthTest.refreshWithoutNewRefreshTokenKeepsTheOldOne`. Microsoft sign-in was removed on 2026-11-23 (offline profiles only), and the code and test went with it. |
+| A17 | Fixed, then removed | `998e94f` | As A16: removed with Microsoft sign-in. |
 | A18 | Fixed | `1014e24` | `ProgressTest.monotonicDropsStaleFractionsWithinAStep` |
 | A19 | Fixed | Phase 2 branch | `InstallerTest.everyDownloadedLibraryHasAChecksum`, `forgeEntriesReuseVanillaChecksums`. Hashes pinned for the Forge installer and 7 libraries, each cross-checked against the `.sha1` files of every repository hosting it. |
 | A20 | Fixed | Phase 3 branch | `SettingsPanelTest.rowsFitTheWindowInsteadOfScrollingSideways` (fails before the fix). The body implements `Scrollable` and tracks the viewport width. The Rust launcher lays its rows out to the window width and is covered by the `page_settings` snapshot. |

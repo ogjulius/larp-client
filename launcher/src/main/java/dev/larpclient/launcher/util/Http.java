@@ -3,11 +3,9 @@ package dev.larpclient.launcher.util;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -16,9 +14,7 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.HexFormat;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.stream.Collectors;
 
 /** HTTP utilities: JSON requests and verified, atomic, retried file downloads. */
 public final class Http {
@@ -34,30 +30,6 @@ public final class Http {
 
     public static String get(String url) throws IOException {
         return send(HttpRequest.newBuilder(URI.create(url)).GET(), url);
-    }
-
-    public static String get(String url, String bearer) throws IOException {
-        return send(HttpRequest.newBuilder(URI.create(url)).header("Authorization", "Bearer " + bearer).GET(), url);
-    }
-
-    public static String postJson(String url, String json) throws IOException {
-        return send(HttpRequest.newBuilder(URI.create(url))
-                .header("Content-Type", "application/json")
-                .header("Accept", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(json)), url);
-    }
-
-    public static String postForm(String url, Map<String, String> form) throws IOException {
-        String body = form.entrySet().stream()
-                .map(e -> enc(e.getKey()) + "=" + enc(e.getValue()))
-                .collect(Collectors.joining("&"));
-        return send(HttpRequest.newBuilder(URI.create(url))
-                .header("Content-Type", "application/x-www-form-urlencoded")
-                .POST(HttpRequest.BodyPublishers.ofString(body)), url);
-    }
-
-    private static String enc(String s) {
-        return URLEncoder.encode(s, StandardCharsets.UTF_8);
     }
 
     private static String send(HttpRequest.Builder builder, String url) throws IOException {

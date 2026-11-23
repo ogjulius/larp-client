@@ -1,0 +1,20 @@
+{
+  "accounts": [
+    {
+      "type": "OFFLINE",
+      "username": "Steve",
+      "uuid": "5627dd98e6be3c21b8a8e92344183641",
+      "accessToken": "0",
+      "accessTokenExpiresAt": 0
+    },
+    {
+      "type": "MICROSOFT",
+      "username": "Alex",
+      "uuid": "0123456789abcdef0123456789abcdef",
+      "accessToken": "token-access",
+      "accessTokenExpiresAt": 1763900000000,
+      "refreshToken": "token-refresh"
+    }
+  ],
+  "selected": 1
+}

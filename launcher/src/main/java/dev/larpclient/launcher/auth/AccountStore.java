@@ -10,7 +10,12 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Persists accounts (including refresh tokens) to an owner-only readable file. */
+/**
+ * Persists offline profiles to an owner-only readable file (older versions kept refresh tokens in it).
+ * An entry of another type, such as a Microsoft account from an older version, is loaded as an offline
+ * profile with the same name and its tokens are dropped; such a file is rewritten at once so the tokens do
+ * not stay on disk. Same rules as the Rust launcher.
+ */
 public final class AccountStore {
     private final Path file;
     private final List<Account> accounts = new ArrayList<>();
@@ -30,16 +35,40 @@ public final class AccountStore {
                 if (data == null) {
                     throw new IOException("file is empty");
                 }
+                List<Account> entries = new ArrayList<>();
+                boolean migrate = false;
                 if (data.accounts != null) {
                     for (Account a : data.accounts) {
-                        if (a != null && a.uuid != null && a.username != null && a.type != null) {
-                            accounts.add(a);
-                        }
+                        migrate |= a != null && a.type != Account.Type.OFFLINE;
+                        entries.add(fromEntry(a));
                     }
                 }
-                selected = data.selected;
+                String wanted = data.selected >= 0 && data.selected < entries.size() && entries.get(data.selected) != null
+                        ? entries.get(data.selected).uuid : null;
+                for (Account a : entries) {
+                    if (a != null && accounts.stream().noneMatch(b -> b.uuid.equals(a.uuid))) {
+                        accounts.add(a);
+                    }
+                }
+                selected = -1;
+                for (int i = 0; i < accounts.size(); i++) {
+                    if (accounts.get(i).uuid.equals(wanted)) {
+                        selected = i;
+                    }
+                }
+                if (selected < 0 && !accounts.isEmpty()) {
+                    selected = 0;
+                }
+                if (migrate) {
+                    try {
+                        save();
+                    } catch (IOException e) {
+                        loadProblem = file + " holds Microsoft sign-in tokens that are no longer used, and could not be"
+                                + " rewritten without them (" + e.getMessage() + ").";
+                    }
+                }
             } catch (Exception e) {
-                // Never overwrite a file we couldn't read: it may hold refresh tokens the user wants back.
+                // Never overwrite a file we couldn't read: the user may want it back.
                 loadProblem = SafeFiles.quarantineAfterLoadFailure(file, e);
                 System.err.println("[larp] " + loadProblem);
             }
@@ -47,6 +76,23 @@ public final class AccountStore {
         if (selected < 0 || selected >= accounts.size()) {
             selected = accounts.isEmpty() ? -1 : 0;
         }
+    }
+
+    /**
+     * One entry as stored if it is an offline profile; otherwise (a Microsoft account from an older version)
+     * a fresh offline profile with the same name. Null for entries without a name or UUID.
+     */
+    private static Account fromEntry(Account a) {
+        if (a == null || a.username == null || a.username.isEmpty() || a.uuid == null || a.uuid.isEmpty()) {
+            return null;
+        }
+        if (a.type == Account.Type.OFFLINE) {
+            if (a.accessToken == null) {
+                a.accessToken = "0";
+            }
+            return a;
+        }
+        return Account.offline(a.username);
     }
 
     /** A message for the user if the accounts file existed but couldn't be read, otherwise null. */

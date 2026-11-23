@@ -126,23 +126,6 @@ pub fn show(ui: &mut Ui, model: &mut Model, inputs: &mut Inputs, page: Rect) {
                     widgets::hairline(ui);
                     row(
                         ui,
-                        "Microsoft sign-in",
-                        "Client ID of an Azure app approved for Minecraft (see DEVELOPMENT.md).",
-                        |ui| {
-                            let id = &mut model.settings.microsoft_client_id;
-                            let field = widgets::text_field(
-                                ui,
-                                id,
-                                300.0,
-                                "Azure application (client) ID",
-                                "Microsoft client ID",
-                            );
-                            changed |= field.changed();
-                        },
-                    );
-                    widgets::hairline(ui);
-                    row(
-                        ui,
                         "Game folder",
                         "Worlds, resource packs, screenshots and logs.",
                         |ui| {

@@ -3,18 +3,19 @@ package dev.larpclient.launcher.auth;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
-/** A Minecraft identity: either an offline profile or a Microsoft account. */
+/** An offline (non-premium) Minecraft profile. Microsoft accounts are not supported. */
 public final class Account {
-    public enum Type { OFFLINE, MICROSOFT }
+    /** Only offline profiles exist; an unknown type in the file (e.g. MICROSOFT) reads as null. */
+    public enum Type { OFFLINE }
 
     public Type type;
     public String username;
     /** Profile UUID without dashes. */
     public String uuid;
+    /** Always "0" for offline play; written so older launchers can read the file. */
     public String accessToken = "0";
-    public long accessTokenExpiresAt;
-    public String refreshToken;
 
+    /** An offline profile with the UUID vanilla Minecraft derives from the name. */
     public static Account offline(String username) {
         Account account = new Account();
         account.type = Type.OFFLINE;
@@ -28,15 +29,12 @@ public final class Account {
         return name != null && name.matches("[A-Za-z0-9_]{3,16}");
     }
 
+    /** Minecraft's --userType for an offline profile. */
     public String userType() {
-        return type == Type.MICROSOFT ? "msa" : "legacy";
-    }
-
-    public boolean needsRefresh() {
-        return type == Type.MICROSOFT && System.currentTimeMillis() > accessTokenExpiresAt - 5 * 60_000L;
+        return "legacy";
     }
 
     public String describe() {
-        return username + (type == Type.MICROSOFT ? "  (Microsoft)" : "  (Offline)");
+        return username + "  (Offline)";
     }
 }

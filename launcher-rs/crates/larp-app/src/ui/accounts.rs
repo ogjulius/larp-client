@@ -1,12 +1,10 @@
-//! Accounts: the saved accounts, and adding a Microsoft account or an offline profile
-//! (`AccountsPanel` in the Java launcher).
+//! Accounts: the saved offline profiles, and adding one (`AccountsPanel` in the Java launcher).
 
 use super::Textures;
 use crate::model::Model;
 use crate::theme;
 use crate::widgets::{self, ButtonKind};
 use eframe::egui::{self, Align, Key, Layout, Margin, Rect, Sense, Ui, UiBuilder, vec2};
-use larp_core::AccountKind;
 
 pub fn show(ui: &mut Ui, model: &mut Model, textures: &mut Textures, page: Rect) {
     let area = Rect::from_min_max(page.min + vec2(44.0, 40.0), page.max - vec2(44.0, 36.0));
@@ -62,21 +60,10 @@ pub fn show(ui: &mut Ui, model: &mut Model, textures: &mut Textures, page: Rect)
                 |ui| {
                     add_row(
                         ui,
-                        "Microsoft account",
-                        "Required for online-mode servers such as Hypixel.",
-                        |ui| {
-                            if widgets::button(ui, "Sign in", ButtonKind::Primary).clicked() {
-                                model.sign_in_clicked();
-                            }
-                        },
-                    );
-                    widgets::hairline(ui);
-                    add_row(
-                        ui,
                         "Offline profile",
                         "For singleplayer and offline-mode servers.",
                         |ui| {
-                            if widgets::button(ui, "Add", ButtonKind::Normal).clicked() {
+                            if widgets::button(ui, "Add", ButtonKind::Primary).clicked() {
                                 model.add_offline();
                             }
                             let field =
@@ -127,11 +114,7 @@ fn account_row(
     let avatar = Rect::from_min_size(inner.min, vec2(36.0, 36.0));
     let face = textures.face(ui.ctx(), model, Some(account));
     widgets::avatar(ui.painter(), avatar, face.as_ref());
-    let kind = if account.kind == AccountKind::Microsoft {
-        "Microsoft account"
-    } else {
-        "Offline profile"
-    };
+    let kind = "Offline profile";
     let name_g = widgets::galley(ui, &account.username, theme::semibold(14.0), theme::TEXT, 0.0);
     let kind_g = widgets::galley(ui, kind, theme::regular(12.0), theme::TEXT_DIM, 0.0);
     let text_top = inner.center().y - (name_g.size().y + 2.0 + kind_g.size().y) / 2.0;

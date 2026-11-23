@@ -22,7 +22,7 @@ Never weaken an assertion or disable a test to get green. A known failing test i
 |---|---|---|
 | `AccountStore` / `larp-core` accounts | file created 0600 from the first byte (A1). Corrupt file → quarantined, not overwritten (A2). Round-trip. | corrupt and truncated JSON |
 | Settings | corrupt → quarantined with warning (A3). Unknown keys preserved/ignored. Java → Rust format compatibility. | real `launcher.json` samples |
-| Microsoft auth | pending → slow_down → success; expired; declined; XSTS `XErr` mapping; 403 unapproved app; 404 no game | recorded JSON responses served by a fake `HttpClient` |
+| Offline accounts | vanilla UUID; old Microsoft entries migrate to offline profiles; same output from both launchers | golden `legacy-microsoft-accounts*.json` |
 | Downloads | 404 no retry; 5xx retried with backoff; checksum mismatch → file not replaced; resume; atomic replace | local HTTP server (`wiremock` / JDK `HttpServer`) |
 | Installer | 1.8.9 + Forge resolve to the exact expected library/native/asset set | recorded version JSON, Forge install profile, asset index |
 | Command builder | substitution; JVM args with quotes/spaces (A4); LWJGL swap; token redaction | — |

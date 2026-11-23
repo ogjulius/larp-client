@@ -1,5 +1,7 @@
-//! Minecraft identities in `accounts.json` (same file and format as the Java launcher).
-//! The file holds refresh tokens, so it is always written owner-only.
+//! Offline (non-premium) profiles in `accounts.json`, the same file and format as the Java launcher.
+//! Microsoft accounts are not supported: an entry of another type (from an older version) is loaded as
+//! an offline profile with the same name, and its tokens are dropped. The file is still written
+//! owner-only, since older versions kept refresh tokens in it.
 
 use crate::{Secret, safe_files};
 use md5::{Digest, Md5};
@@ -11,7 +13,6 @@ use std::path::{Path, PathBuf};
 #[serde(rename_all = "UPPERCASE")]
 pub enum AccountKind {
     Offline,
-    Microsoft,
 }
 
 fn offline_token() -> Secret {
@@ -26,13 +27,9 @@ pub struct Account {
     pub username: String,
     /// Profile UUID without dashes.
     pub uuid: String,
+    /// Always `"0"` for offline play; written so older launchers can read the file.
     #[serde(default = "offline_token")]
     pub access_token: Secret,
-    /// Unix time in milliseconds.
-    #[serde(default)]
-    pub access_token_expires_at: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub refresh_token: Option<Secret>,
 }
 
 impl Account {
@@ -47,8 +44,6 @@ impl Account {
             username: username.to_owned(),
             uuid: bytes.iter().map(|b| format!("{b:02x}")).collect(),
             access_token: offline_token(),
-            access_token_expires_at: 0,
-            refresh_token: None,
         }
     }
 
@@ -57,20 +52,24 @@ impl Account {
         (3..=16).contains(&name.len()) && name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
     }
 
+    /// Minecraft's `--userType` for an offline profile.
     pub const fn user_type(&self) -> &'static str {
-        match self.kind {
-            AccountKind::Microsoft => "msa",
-            AccountKind::Offline => "legacy",
-        }
+        "legacy"
     }
 
-    /// True for a Microsoft account whose token expires within 5 minutes of `now_millis`.
-    pub const fn needs_refresh(&self, now_millis: i64) -> bool {
-        matches!(self.kind, AccountKind::Microsoft) && now_millis > self.access_token_expires_at - 5 * 60_000
-    }
-
-    fn is_complete(&self) -> bool {
-        !self.uuid.is_empty() && !self.username.is_empty()
+    /// One entry of the file: an offline profile as stored, or, for any other type (a Microsoft
+    /// account from an older version), a fresh offline profile with the same name. Entries without
+    /// a name or UUID are dropped.
+    fn from_entry(entry: serde_json::Value) -> Option<Self> {
+        let offline = entry.get("type").and_then(serde_json::Value::as_str) == Some("OFFLINE");
+        let account = if offline {
+            serde_json::from_value::<Self>(entry).ok()?
+        } else {
+            let name = entry.get("username")?.as_str()?;
+            entry.get("uuid")?.as_str().filter(|u| !u.is_empty())?;
+            Self::offline(name)
+        };
+        (!account.uuid.is_empty() && !account.username.is_empty()).then_some(account)
     }
 }
 
@@ -94,9 +93,11 @@ pub struct AccountStore {
 }
 
 impl AccountStore {
-    /// Load `file`. A corrupt file is moved to `accounts.json.broken` (never overwritten: it may hold
-    /// refresh tokens the user wants back) and reported in [`AccountStore::load_problem`].
-    /// Entries that are null or incomplete are dropped; the rest are kept.
+    /// Load `file`. A corrupt file is moved to `accounts.json.broken` (never overwritten) and
+    /// reported in [`AccountStore::load_problem`]. Entries that are null or incomplete are dropped,
+    /// entries of another type become offline profiles (see [`Account::from_entry`]); duplicates
+    /// that result keep their first position. A file that needed migrating is rewritten at once, so
+    /// the old Microsoft tokens do not stay on disk.
     pub fn load(file: &Path) -> Self {
         let mut store = Self {
             file: file.to_path_buf(),
@@ -114,15 +115,30 @@ impl AccountStore {
         };
         match serde_json::from_str::<Option<Data<serde_json::Value>>>(&text) {
             Ok(Some(data)) => {
-                store.accounts = data
+                let migrate = data
                     .accounts
-                    .into_iter()
-                    .filter_map(|v| serde_json::from_value::<Account>(v).ok())
-                    .filter(Account::is_complete)
-                    .collect();
-                store.selected = usize::try_from(data.selected)
+                    .iter()
+                    .any(|e| e.is_object() && e.get("type").and_then(serde_json::Value::as_str) != Some("OFFLINE"));
+                let entries: Vec<Option<Account>> = data.accounts.into_iter().map(Account::from_entry).collect();
+                let wanted = usize::try_from(data.selected)
                     .ok()
-                    .filter(|&i| i < store.accounts.len());
+                    .and_then(|i| entries.get(i).cloned().flatten())
+                    .map(|a| a.uuid);
+                for account in entries.into_iter().flatten() {
+                    if !store.accounts.iter().any(|a| a.uuid == account.uuid) {
+                        store.accounts.push(account);
+                    }
+                }
+                store.selected = wanted.and_then(|uuid| store.accounts.iter().position(|a| a.uuid == uuid));
+                if store.selected.is_none() && !store.accounts.is_empty() {
+                    store.selected = Some(0);
+                }
+                if migrate && let Err(e) = store.save() {
+                    store.problem = Some(format!(
+                        "{} holds Microsoft sign-in tokens that are no longer used, and could not be rewritten without them ({e}).",
+                        file.display()
+                    ));
+                }
             }
             Ok(None) => store.problem = Some(safe_files::quarantine_after_load_failure(file, "file is empty")),
             Err(e) => {
@@ -172,18 +188,6 @@ impl AccountStore {
         self.accounts.retain(|a| a.uuid != account.uuid);
         self.accounts.push(account);
         self.selected = Some(self.accounts.len() - 1);
-    }
-
-    /// Replace the account with the same UUID in place (keeps its position and the selection), for
-    /// example after a token refresh. Returns false if there is no such account.
-    pub fn update(&mut self, account: Account) -> bool {
-        match self.accounts.iter_mut().find(|a| a.uuid == account.uuid) {
-            Some(slot) => {
-                *slot = account;
-                true
-            }
-            None => false,
-        }
     }
 
     pub fn remove(&mut self, uuid: &str) {
@@ -237,10 +241,7 @@ mod tests {
         assert!(store.load_problem().is_none());
         assert_eq!(store.all().len(), 2);
         assert_eq!(store.selected().unwrap().username, "Steve");
-        let alex = &store.all()[1];
-        assert_eq!(alex.kind, AccountKind::Microsoft);
-        assert_eq!(alex.refresh_token.as_ref().unwrap().expose(), "test-refresh-token");
-        assert_eq!(alex.access_token_expires_at, 1_763_900_000_000);
+        assert_eq!(store.all()[1].username, "Alex");
 
         let dir = tempfile::tempdir().unwrap();
         let copy = dir.path().join("accounts.json");
@@ -286,22 +287,6 @@ mod tests {
     }
 
     #[test]
-    fn update_replaces_in_place_and_keeps_the_selection() {
-        let dir = tempfile::tempdir().unwrap();
-        let mut store = AccountStore::load(&dir.path().join("accounts.json"));
-        store.add(Account::offline("First"));
-        store.add(Account::offline("Second"));
-        store.select(&Account::offline("Second").uuid);
-        let mut refreshed = Account::offline("First");
-        refreshed.access_token_expires_at = 42;
-        assert!(store.update(refreshed));
-        assert_eq!(store.all()[0].access_token_expires_at, 42);
-        assert_eq!(store.selected().unwrap().username, "Second");
-        assert!(!store.update(Account::offline("Nobody")));
-        assert_eq!(store.all().len(), 2);
-    }
-
-    #[test]
     fn invalid_entries_are_dropped_and_selection_clamped() {
         let dir = tempfile::tempdir().unwrap();
         let file = dir.path().join("accounts.json");
@@ -334,13 +319,51 @@ mod tests {
         assert!(store.selected().is_none());
     }
 
+    /// Microsoft accounts from older versions become offline profiles with the same name, without
+    /// their tokens, and stay selected; the result matches what the Java launcher writes.
     #[test]
-    fn refresh_window() {
-        let mut a = Account::offline("Steve");
-        assert!(!a.needs_refresh(i64::MAX));
-        a.kind = AccountKind::Microsoft;
-        a.access_token_expires_at = 1_000_000;
-        assert!(!a.needs_refresh(1_000_000 - 5 * 60_000));
-        assert!(a.needs_refresh(1_000_000 - 5 * 60_000 + 1));
+    fn microsoft_accounts_become_offline_profiles() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("accounts.json");
+        fs::copy(golden("legacy-microsoft-accounts.json"), &file).unwrap();
+        let store = AccountStore::load(&file);
+        assert!(store.load_problem().is_none());
+        // Rewritten on load: the tokens are gone from disk without waiting for a save.
+        assert_eq!(
+            fs::read_to_string(&file).unwrap().trim(),
+            fs::read_to_string(golden("legacy-microsoft-accounts.migrated.json"))
+                .unwrap()
+                .trim()
+        );
+        let names: Vec<_> = store.all().iter().map(|a| a.username.as_str()).collect();
+        assert_eq!(names, ["Steve", "Alex"]);
+        assert_eq!(store.all()[1], Account::offline("Alex"));
+        assert_eq!(store.selected().unwrap().username, "Alex");
+
+        store.save().unwrap();
+        let saved = fs::read_to_string(&file).unwrap();
+        assert!(!saved.contains("token-"), "tokens must not survive: {saved}");
+        assert_eq!(
+            saved.trim(),
+            fs::read_to_string(golden("legacy-microsoft-accounts.migrated.json"))
+                .unwrap()
+                .trim()
+        );
+    }
+
+    #[test]
+    fn migration_merges_a_microsoft_account_into_the_offline_profile_of_the_same_name() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("accounts.json");
+        fs::write(
+            &file,
+            r#"{"accounts":[{"type":"OFFLINE","username":"Steve","uuid":"5627dd98e6be3c21b8a8e92344183641"},
+                {"type":"MICROSOFT","username":"Steve","uuid":"0123","refreshToken":"x"},
+                {"type":"MICROSOFT","username":"NoUuid"}],"selected":1}"#,
+        )
+        .unwrap();
+        let store = AccountStore::load(&file);
+        assert_eq!(store.all(), [Account::offline("Steve")]);
+        assert_eq!(store.selected().unwrap().username, "Steve");
     }
 }

@@ -85,12 +85,12 @@ Each phase ends with its exit criteria green in CI. No phase starts on a red bui
 
   RSS is not the hoped-for ~30 MB. About 85 MB of it is the NVIDIA OpenGL driver mapped into the process, the price of the GPU pan. Ten minutes idle on Home: no memory growth, 2.3% CPU on average. (The end-of-run RSS was lower, but concurrent compilation was reclaiming pages at the time, so that figure is not a result.)
 
-  Left before exit:
-  1. Human review of `screenshots/` (Java vs Rust per page). Known difference: toggle switches instead of Java's checkboxes.
-  2. Test on Sway, KDE and GNOME (only Hyprland is available on the development machine).
-  3. A first CI run. UI snapshots were recorded on NVIDIA; CI renders with Mesa lavapipe and must match within egui's default tolerance.
-  4. Live Microsoft sign-in, which needs the approved Azure client ID; the flow is tested against a mock server.
-  5. The OS keyring for refresh tokens, deliberately deferred to Phase 4: both launchers must read the same `accounts.json` while they ship side by side.
+  Exit items (updated 2026-11-23):
+  1. ✅ Screenshot review (`screenshots/`, Java vs Rust per page), done by Claude at the user's request. Home and Console match. Accepted differences: toggle switches instead of checkboxes, plain number fields instead of spinners, the JVM arguments field shows its start, and the decimal separator ("3.0 GB" vs the Java launcher following the system locale). `accounts.png` was regenerated after the offline-only change, both sides rendered under Xvfb with the real game art.
+  2. ⏳ Test on Sway, KDE and GNOME. Still open: only Hyprland is installed, and installing compositors needs root. Each can run headless for a test (`WLR_BACKENDS=headless sway`, `kwin_wayland --virtual`, `mutter --headless`).
+  3. ✅ CI: all jobs green on GitHub, including the UI snapshots under Mesa lavapipe (recorded on NVIDIA) and the end-to-end game boot on Ubuntu 22.04.
+  4. ➖ Dropped: Microsoft sign-in was removed on 2026-11-23 (offline profiles only).
+  5. ➖ Dropped: no tokens are stored any more, so no OS keyring is needed.
 
   Found on the way: A20, the Java Settings page overflowing the window, now fixed with a regression test.
 
@@ -108,4 +108,3 @@ Each phase ends with its exit criteria green in CI. No phase starts on a red bui
 | Rust UI toolkit misbehaves on Wayland/tiling WMs (the Java launcher needed workarounds) | Spike in Phase 3 week 1 on Hyprland, Sway, KDE and GNOME before committing to a toolkit |
 | Settings/account migration loses data | Rust reads the Java formats. The first save backs up the original. Golden tests use real files. |
 | LWJGL patch needs a bytecode library in Rust | Not needed: LWJGL for 1.8.9 is a single pinned jar (BSD licence). Pre-build the patched `LinuxMouse.class` at build time, verify the input jar's SHA-1 at runtime, and splice. |
-| Microsoft sign-in still needs a Mojang-approved Azure client ID | Unchanged by the rewrite. Documented in DEVELOPMENT.md. |
