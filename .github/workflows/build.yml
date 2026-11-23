@@ -34,9 +34,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: larpclient
-          path: |
-            launcher/build/libs/larp-launcher-*.jar
-            mod/build/libs/larpclient-*.jar
+          path: mod/build/libs/larpclient-*.jar
 
   rust:
     runs-on: ubuntu-latest
@@ -105,7 +103,7 @@ jobs:
         # crashes in LinuxDisplay.getAvailableDisplayModes (ArrayIndexOutOfBoundsException: 0) without it.
         run: sudo apt-get update && sudo apt-get install -y xvfb x11-xserver-utils libxkbcommon-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev mesa-vulkan-drivers
       - name: Build the bundle
-        run: ./gradlew :launcher:rustBundle --console=plain
+        run: ./gradlew :bundle:rustBundle --console=plain
       - name: Build the launcher
         run: cargo build --release --locked -p larp-cli
         working-directory: launcher-rs

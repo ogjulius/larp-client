@@ -1,12 +1,12 @@
 # Architecture
 
-## 1. Current system
+## 1. Current system (since 0.3.0; the Java launcher was removed)
 
 ```
-┌──────────────── launcher (Java 17 / Swing) ────────────────┐
-│ ui/*  ──►  Installer ──► Http (verified downloads)         │
-│            JavaRuntime     AccountStore (offline only)     │
-│            GameLauncher ──► LwjglMousePatch                │
+┌──────────────── launcher (Rust, egui) ─────────────────────┐
+│ larp-app ──► larp-install ──► larp-net (verified downloads)│
+│ larp-cli     larp-launch      larp-core (offline accounts) │
+│              └► LWJGL splice (classes from bundle/, Java)  │
 └──────────────┬─────────────────────────────────────────────┘
                │ spawns: java8 -cp <libs, patched LWJGL> net.minecraft.launchwrapper.Launch
 ┌──────────────▼──────── game JVM (Java 8) ──────────────────┐
@@ -43,7 +43,7 @@ Rules:
 - **Bounded everything.** The download semaphore is sized like today's pool. The log pump uses a bounded channel and the console keeps a ring buffer (no unbounded memory growth during long sessions).
 - **No panics across boundaries.** Library crates return `thiserror` errors. The binary turns them into user messages. `#![deny(clippy::unwrap_used)]` applies outside tests.
 - **Accounts**: offline (non-premium) profiles only; Microsoft sign-in was removed (2026-11-23), so there are no secrets to store. `accounts.json` is still created 0600 atomically (fixes A1) because older versions kept refresh tokens in it, and the access token keeps its redaction newtype in logs.
-- **Build integration**: Gradle still builds the mod. `./gradlew :launcher:rustBundle` writes the mod jar, the XWayland helper class, LWJGL's `LinuxMouse` patched by the Java `LwjglMousePatch` (same bytes as the Java launcher) and the pinned LWJGL SHA-1 to `launcher-rs/bundle/` (git-ignored). `larp-launch/build.rs` embeds them from there, or from `$LARP_BUNDLE_DIR`. Without a bundle the workspace still builds and tests, but the binary refuses to launch. CI builds Gradle first, then Cargo.
+- **Build integration**: Gradle still builds the mod. `./gradlew :bundle:rustBundle` writes the mod jar, the XWayland helper class, LWJGL's `LinuxMouse` patched by the Java `LwjglMousePatch` (same bytes as the Java launcher) and the pinned LWJGL SHA-1 to `launcher-rs/bundle/` (git-ignored). `larp-launch/build.rs` embeds them from there, or from `$LARP_BUNDLE_DIR`. Without a bundle the workspace still builds and tests, but the binary refuses to launch. CI builds Gradle first, then Cargo.
 
 ## 4. Mod (Java), unchanged structure
 
