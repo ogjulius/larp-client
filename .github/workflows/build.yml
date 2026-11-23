@@ -60,7 +60,9 @@ jobs:
 
   # Phase 2 exit criterion: the Rust launcher installs the game and boots it with the mod loaded.
   rust-e2e:
-    runs-on: ubuntu-latest
+    # The oldest supported runner, so the uploaded binary needs only glibc 2.35 (Ubuntu 22.04,
+    # Debian 12, Fedora 36 and newer), and the end-to-end test proves it boots the game there.
+    runs-on: ubuntu-22.04
     needs: rust
     steps:
       - uses: actions/checkout@v4
@@ -87,3 +89,9 @@ jobs:
       - name: End-to-end
         # The game must run on Java 8; setup-java leaves JAVA_HOME at the last version (17).
         run: JAVA_HOME="$JAVA_HOME_8_X64" launcher-rs/scripts/e2e.sh
+      # The binary that just passed the end-to-end test is the one releases ship.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: larp-client-linux-x86_64
+          path: launcher-rs/target/release/larp-client
+          if-no-files-found: error
