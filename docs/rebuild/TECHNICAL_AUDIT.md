@@ -117,4 +117,4 @@ Measured in-repo: the XWayland mouse fix (above). Not measured: launcher RSS and
 
 End-to-end (manual, 2026-11-23): launcher jar from this branch, `--launch --offline Dev` under Xvfb with an isolated data and config dir. Install verified all files, the game ran on the v3 patched LWJGL jar, the mod logged `initialised 24 modules in 378 ms`, `profile.json` and `music.json` were written, and the log had no exceptions.
 
-Not yet covered (carried into Phase 2, where the Rust port needs the same fixtures): `Installer` golden tests against recorded version/Forge JSON, and the scripted end-to-end test (`scripts/e2e.sh`).
+Carried into Phase 2 and now covered there: the `Installer` golden tests against recorded version/Forge JSON (`testdata/launcher/golden`, shared by the Java and Rust tests), and the scripted end-to-end test (`launcher-rs/scripts/e2e.sh`, CI job `rust-e2e`).

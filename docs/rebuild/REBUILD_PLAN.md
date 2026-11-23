@@ -1,6 +1,7 @@
 # Rebuild Plan
 
-Status: **proposal, awaiting a decision** (see §2). Nothing has been rewritten yet.
+Status: **Option B chosen** (2026-11-23). Phase 1 done (TECHNICAL_AUDIT.md §7). Phase 2 done: see the
+status note under Phase 2 below.
 
 ## 1. The central finding
 
@@ -58,6 +59,7 @@ Each phase ends with its exit criteria green in CI. No phase starts on a red bui
 - Port, in order: paths and settings (reads existing JSON byte-for-byte compatibly), downloads, installer, Java runtime, auth, command builder, process supervision, CLI.
 - Golden tests: for recorded version/Forge JSON fixtures, the Rust installer must resolve the **same** file set and hashes, and the command builder must produce the **same** argv as the Java launcher (minus the token).
 - **Exit**: `larp-client --install-only` and `--launch --offline Dev` work headless in CI (Xvfb), and the game boots with the mod loaded (log assertion) and exits cleanly.
+- **Status (2026-11-23)**: done. Crates `larp-core`, `larp-net`, `larp-install`, `larp-auth`, `larp-launch`, `larp-cli`. Golden tests match the Java launcher's library sets (Linux, Windows, macOS) and launch argv. `launcher-rs/scripts/e2e.sh` installs into a throwaway directory, reinstalls, then boots the game under Xvfb with `-Dlarp.screenshotTour=true`. It asserts that Forge loaded `larpclient` and its mixins, that the patched LWJGL is on the classpath, that all 5 tour screenshots were written, `Stopping!`, exit 0 and no exceptions. It passes locally in about 30 s. CI runs it as the `rust-e2e` job, which has not run on GitHub yet (the branch is not pushed).
 
 ### Phase 3: Rust launcher UI
 - Rebuild Home / Accounts / Settings / Console with the existing design language: palette (`ui/Palette`), Inter, nav rail, starry backdrop, launch button states.

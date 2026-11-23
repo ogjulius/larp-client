@@ -44,7 +44,7 @@ Rules:
 - **Bounded everything.** The download semaphore is sized like today's pool. The log pump uses a bounded channel and the console keeps a ring buffer (no unbounded memory growth during long sessions).
 - **No panics across boundaries.** Library crates return `thiserror` errors. The binary turns them into user messages. `#![deny(clippy::unwrap_used)]` applies outside tests.
 - **Secrets**: refresh tokens go in the OS keyring when one is available, otherwise in a file created 0600 atomically (fixes A1). Tokens never appear in logs (a redaction newtype with no `Display`).
-- **Build integration**: Gradle still builds the mod. The launcher embeds `mod/build/libs/larpclient-<ver>.jar` and the pre-patched LWJGL class at build time (`build.rs` reads paths provided by a top-level `scripts/build.sh`). CI builds Gradle first, then Cargo.
+- **Build integration**: Gradle still builds the mod. `./gradlew :launcher:rustBundle` writes the mod jar, the XWayland helper class, LWJGL's `LinuxMouse` patched by the Java `LwjglMousePatch` (same bytes as the Java launcher) and the pinned LWJGL SHA-1 to `launcher-rs/bundle/` (git-ignored). `larp-launch/build.rs` embeds them from there, or from `$LARP_BUNDLE_DIR`. Without a bundle the workspace still builds and tests, but the binary refuses to launch. CI builds Gradle first, then Cargo.
 
 ## 4. Mod (Java), unchanged structure
 
