@@ -9,6 +9,7 @@ pub mod java_runtime;
 pub mod jvm_args;
 pub mod log4j;
 pub mod lwjgl;
+pub mod pipeline;
 pub mod process;
 
 pub use error::LaunchError;

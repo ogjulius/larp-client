@@ -6,12 +6,10 @@ mod args;
 use args::{Args, Mode};
 use larp_auth::MicrosoftAuth;
 use larp_core::{Account, AccountStore, Dirs, GameFiles, Os, Settings};
-use larp_install::{Installer, Progress};
-use larp_launch::java_runtime::JavaRuntime;
-use larp_launch::{bundle, command, instance, lwjgl, process};
+use larp_install::Progress;
+use larp_launch::{command, pipeline, process};
 use larp_net::Net;
 use std::error::Error;
-use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -105,18 +103,12 @@ async fn run(args: Args) -> Result<ExitCode, Box<dyn Error>> {
     let net = Net::new()?;
     let printer = Printer::default();
 
-    let game = Installer::new(net.clone(), files.clone()).install(&printer).await?;
-    let java = JavaRuntime::new(net.clone(), files.clone())
-        .resolve(&settings.java_path, &printer)
-        .await?;
-    let bundle = bundle::get()?;
-    instance::prepare(&files, bundle.mod_jar)?;
-    println!("[larp] Java: {}", java.display());
-    println!("[larp] Installed into {}", files.root.display());
     if args.mode == Mode::Install {
+        let (_, java) = pipeline::install(&net, &files, &settings, &printer).await?;
+        println!("[larp] Java: {}", java.display());
+        println!("[larp] Installed into {}", files.root.display());
         return Ok(ExitCode::SUCCESS);
     }
-
     let account = match &args.offline {
         Some(name) => {
             if !Account::is_valid_username(name) {
@@ -144,45 +136,18 @@ async fn run(args: Args) -> Result<ExitCode, Box<dyn Error>> {
         }
     };
 
-    let classpath = classpath_with_mouse_fix(&game.classpath, &files, bundle).await;
-    let cmd = command::build(
-        &game,
-        &files,
-        &account,
-        &settings,
-        &java,
-        &classpath,
-        Os::current().classpath_separator(),
-    )?;
+    let prepared = pipeline::prepare(&net, &files, &settings, &account, &printer, &|warning: &str| {
+        eprintln!("[larp] {warning}");
+    })
+    .await?;
+    let cmd = prepared.command;
+    println!("[larp] Java: {}", prepared.java.display());
+    println!("[larp] Installed into {}", files.root.display());
     println!("[larp] {}", command::redact(&cmd, &account));
     let command = process::configure(&cmd, &files.instance, Os::current(), settings.threaded_gl)?;
-    let status = process::run_attached(command, Arc::new(|line: &str| println!("{line}"))).await?;
+    let status = process::run_attached(command, Arc::new(|line: &str| println!("{line}")), true).await?;
     Ok(status
         .code()
         .and_then(|c| u8::try_from(c).ok())
         .map_or(ExitCode::FAILURE, ExitCode::from))
-}
-
-/// On Linux, swap LWJGL for the patched copy (XWayland mouse fix). Any problem only costs the fix.
-async fn classpath_with_mouse_fix(
-    classpath: &[PathBuf],
-    files: &GameFiles,
-    bundle: &'static bundle::Bundle,
-) -> Vec<PathBuf> {
-    let mut classpath = classpath.to_vec();
-    let Some(index) = lwjgl::find(&classpath).filter(|_| Os::current() == Os::Linux) else {
-        return classpath;
-    };
-    let (jar, dir) = (classpath[index].clone(), files.patches.clone());
-    let patch = lwjgl::Patch {
-        source_sha1: bundle.lwjgl_sha1,
-        linux_mouse: bundle.linux_mouse,
-        helper: bundle.window_size_cache,
-    };
-    match tokio::task::spawn_blocking(move || lwjgl::prepare(&jar, &dir, &patch)).await {
-        Ok(Ok(patched)) => classpath[index] = patched,
-        Ok(Err(e)) => eprintln!("[larp] LWJGL mouse patch unavailable, mouse may lag under XWayland: {e}"),
-        Err(e) => eprintln!("[larp] LWJGL mouse patch unavailable, mouse may lag under XWayland: {e}"),
-    }
-    classpath
 }

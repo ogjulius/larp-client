@@ -26,6 +26,8 @@ pub enum LaunchError {
     NoBundle,
     #[error(transparent)]
     Net(#[from] larp_net::NetError),
+    #[error(transparent)]
+    Install(#[from] larp_install::InstallError),
 }
 
 impl LaunchError {

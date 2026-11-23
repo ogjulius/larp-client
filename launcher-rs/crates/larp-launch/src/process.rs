@@ -44,10 +44,12 @@ pub fn configure(
 }
 
 /// Run the game and pass each output line (log4j XML turned into readable lines) to `on_line`.
-/// The game is killed if this future is dropped.
+/// With `kill_on_drop`, dropping this future kills the game (the command line: Ctrl+C ends both).
+/// Without it the game outlives the launcher, as the Java launcher's did when its window was closed.
 pub async fn run_attached(
     command: std::process::Command,
     on_line: Arc<dyn Fn(&str) + Send + Sync>,
+    kill_on_drop: bool,
 ) -> Result<ExitStatus, LaunchError> {
     let program = command.get_program().to_owned();
     let mut command = tokio::process::Command::from(command);
@@ -55,7 +57,7 @@ pub async fn run_attached(
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .kill_on_drop(true);
+        .kill_on_drop(kill_on_drop);
     let mut child = command.spawn().map_err(|e| LaunchError::io(&program, e))?;
     let stdout = child.stdout.take().map(|s| tokio::spawn(pump(s, on_line.clone())));
     let stderr = child.stderr.take().map(|s| tokio::spawn(pump(s, on_line)));
@@ -101,6 +103,7 @@ mod tests {
     use super::*;
     use std::os::unix::fs::PermissionsExt;
     use std::sync::Mutex;
+    use std::time::Duration;
 
     fn script(dir: &Path, body: &str) -> String {
         let path = dir.join("fake-java");
@@ -124,7 +127,7 @@ exit 3"#,
         let cmd = configure(&[java], &dir.path().join("instance"), Os::Linux, true).unwrap();
         let lines = Arc::new(Mutex::new(Vec::new()));
         let sink = lines.clone();
-        let status = run_attached(cmd, Arc::new(move |l: &str| sink.lock().unwrap().push(l.to_owned())))
+        let status = run_attached(cmd, Arc::new(move |l: &str| sink.lock().unwrap().push(l.to_owned())), true)
             .await
             .unwrap();
         assert_eq!(status.code(), Some(3));
@@ -140,6 +143,28 @@ exit 3"#,
             "runs in the instance dir: {lines:?}"
         );
         assert!(lines.contains(&"oops".to_owned()));
+    }
+
+    /// Drops `run_attached` while the game runs; returns whether the game finished its work anyway.
+    async fn game_survives_drop(kill_on_drop: bool) -> bool {
+        let dir = tempfile::tempdir().unwrap();
+        let marker = dir.path().join("still-running");
+        let java = script(dir.path(), &format!("sleep 0.4; touch '{}'", marker.display()));
+        let cmd = configure(&[java], dir.path(), Os::Linux, false).unwrap();
+        let run = run_attached(cmd, Arc::new(|_: &str| {}), kill_on_drop);
+        assert!(tokio::time::timeout(Duration::from_millis(100), run).await.is_err());
+        tokio::time::sleep(Duration::from_millis(900)).await;
+        marker.exists()
+    }
+
+    #[tokio::test]
+    async fn closing_the_graphical_launcher_leaves_the_game_running() {
+        assert!(game_survives_drop(false).await);
+    }
+
+    #[tokio::test]
+    async fn the_command_line_takes_the_game_down_with_it() {
+        assert!(!game_survives_drop(true).await);
     }
 
     #[test]
