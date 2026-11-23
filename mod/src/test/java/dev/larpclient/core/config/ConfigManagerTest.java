@@ -16,7 +16,7 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ConfigManagerTest {
-    static final class Sample extends Module {
+    static class Sample extends Module {
         final BooleanSetting flag = setting(new BooleanSetting("Flag", "", false));
         final NumberSetting amount = setting(new NumberSetting("Amount", "", 5, 0, 10, 1));
         private final boolean defaultOn;
@@ -139,5 +139,27 @@ class ConfigManagerTest {
         Sample reloaded = new Sample("Order", false);
         new ConfigManager(file, manager(reloaded)).load();
         assertEquals(7.0, reloaded.amount.get());
+    }
+
+    /** Regression (audit A14): a module switched off only by server policy is saved as enabled. */
+    @Test
+    void policySuspendedModuleIsSavedAsEnabled(@TempDir Path dir) {
+        Path file = dir.resolve("profile.json");
+        boolean[] blocked = {false};
+        Sample s = new Sample("Look", false) {
+            @Override
+            public String blockedReason() {
+                return blocked[0] ? "Not allowed here" : null;
+            }
+        };
+        ModuleManager modules = manager(s);
+        s.setEnabled(true);
+        blocked[0] = true;
+        modules.enforcePolicies();
+        new ConfigManager(file, modules).save();
+
+        Sample reloaded = new Sample("Look", false);
+        new ConfigManager(file, manager(reloaded)).load();
+        assertTrue(reloaded.isEnabled());
     }
 }

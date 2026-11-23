@@ -29,6 +29,7 @@ public abstract class Module {
 
     private EventBus bus;
     private boolean enabled;
+    private boolean suspendedByPolicy;
 
     protected Module(String name, String description, Category category) {
         this.name = name;
@@ -49,10 +50,11 @@ public abstract class Module {
     }
 
     public final void setEnabled(boolean enable) {
-        if (enable == enabled) {
-            return;
-        }
         if (enable && blockedReason() != null) {
+            return; // refused: keep any remembered choice
+        }
+        suspendedByPolicy = false; // an explicit change replaces the remembered choice
+        if (enable == enabled) {
             return;
         }
         enabled = enable;
@@ -70,6 +72,24 @@ public abstract class Module {
             active.clear();
             onDisable();
         }
+    }
+
+    /**
+     * What the user chose: true if enabled, or if only switched off because the current server
+     * disallows it (see {@link ModuleManager#enforcePolicies()}). This is what gets saved.
+     */
+    public final boolean isWantedEnabled() {
+        return enabled || suspendedByPolicy;
+    }
+
+    final boolean isSuspendedByPolicy() {
+        return suspendedByPolicy;
+    }
+
+    /** Switch off because of a server policy, remembering to switch back on where it's allowed. */
+    final void suspendByPolicy() {
+        setEnabled(false);
+        suspendedByPolicy = true;
     }
 
     public final void toggle() {

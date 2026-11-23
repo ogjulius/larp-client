@@ -83,4 +83,33 @@ class ModuleTest {
         m.register(new Counter());
         assertThrows(IllegalStateException.class, () -> m.register(new Counter()));
     }
+
+    /** Regression (audit A14): a policy-disabled module comes back when the policy no longer applies. */
+    @Test
+    void policySuspensionIsTemporary() {
+        ModuleManager m = new ModuleManager(new EventBus());
+        Counter c = m.register(new Counter());
+        c.setEnabled(true);
+        c.blocked = true;      // join a server that disallows it
+        m.enforcePolicies();
+        assertFalse(c.isEnabled());
+        assertTrue(c.isWantedEnabled(), "the user's choice is remembered");
+        c.blocked = false;     // join a server that allows it
+        m.enforcePolicies();
+        assertTrue(c.isEnabled());
+    }
+
+    @Test
+    void explicitChangeWhileSuspendedOverridesTheRememberedChoice() {
+        ModuleManager m = new ModuleManager(new EventBus());
+        Counter c = m.register(new Counter());
+        c.setEnabled(true);
+        c.blocked = true;
+        m.enforcePolicies();
+        c.setEnabled(false);   // the user switches it off on purpose
+        c.blocked = false;
+        m.enforcePolicies();
+        assertFalse(c.isEnabled());
+        assertFalse(c.isWantedEnabled());
+    }
 }

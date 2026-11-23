@@ -169,7 +169,7 @@ public final class ConfigManager {
         JsonObject moduleObjects = new JsonObject();
         for (Module module : modules.getModules()) {
             JsonObject entry = new JsonObject();
-            entry.addProperty("enabled", module.isEnabled());
+            entry.addProperty("enabled", module.isWantedEnabled()); // not switched off by a server policy
             entry.add("toggleKey", module.getToggleKey().toJson());
             JsonObject settings = new JsonObject();
             for (Setting<?> setting : module.getSettings()) {
