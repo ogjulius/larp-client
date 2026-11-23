@@ -71,6 +71,7 @@ Severity: **High**: data loss or security exposure. **Medium**: incorrect behavi
 | A17 | Low | `launcher/.../auth/MicrosoftAuth.java` | *Found in Phase 1.* Non-JSON error pages, missing fields and an empty Xbox user-claims list escaped as `JsonSyntaxException` / `IndexOutOfBoundsException`. | Confusing errors instead of "Unexpected response from Xbox Live: missing …". |
 | A18 | Low | `launcher/.../game/Installer.java` (parallel downloads) | *Found in Phase 1 (end-to-end run).* Workers count atomically but deliver progress out of order. | Progress jumps backwards (30 % → 14 % → 36 % → 10 %). |
 | A19 | High | `launcher/.../game/Installer.java` `resolveLibraries`, `installForge` | *Found in Phase 2 (golden files).* The Forge installer and 18 of the 50 Linux libraries were downloaded with **no integrity check**. Forge's own `checksums` lists were ignored, and a Forge entry replaced vanilla's verified entry for the same file (`jopt-simple`). Five libraries had no checksum in any metadata. | A tampered or corrupted download from a mirror would be put on the game's classpath and run. |
+| A20 | Medium | `launcher/.../ui/SettingsPanel.java` (scroll body) | *Found in Phase 3 (screenshot comparison).* The scroll pane let the page grow to its preferred width, which exceeded the window. | The memory slider, window-size fields, toggles, Browse button and JVM-argument field were cut off on the right behind a horizontal scrollbar. |
 
 Dev-only tools (`ScreenshotTour`, `FullscreenProbe`, the new `InputProbe`) ship in the release jar, gated by `-Dlarp.*` system properties. That is acceptable. They are inert unless the property is set.
 
@@ -114,6 +115,7 @@ Measured in-repo: the XWayland mouse fix (above). Not measured: launcher RSS and
 | A17 | Fixed | `998e94f` | `MicrosoftAuthTest.malformedResponsesFailCleanly` (+ 9 more sign-in flow tests) |
 | A18 | Fixed | `1014e24` | `ProgressTest.monotonicDropsStaleFractionsWithinAStep` |
 | A19 | Fixed | Phase 2 branch | `InstallerTest.everyDownloadedLibraryHasAChecksum`, `forgeEntriesReuseVanillaChecksums`. Hashes pinned for the Forge installer and 7 libraries, each cross-checked against the `.sha1` files of every repository hosting it. |
+| A20 | Fixed | Phase 3 branch | `SettingsPanelTest.rowsFitTheWindowInsteadOfScrollingSideways` (fails before the fix). The body implements `Scrollable` and tracks the viewport width. The Rust launcher lays its rows out to the window width and is covered by the `page_settings` snapshot. |
 
 End-to-end (manual, 2026-11-23): launcher jar from this branch, `--launch --offline Dev` under Xvfb with an isolated data and config dir. Install verified all files, the game ran on the v3 patched LWJGL jar, the mod logged `initialised 24 modules in 378 ms`, `profile.json` and `music.json` were written, and the log had no exceptions.
 
