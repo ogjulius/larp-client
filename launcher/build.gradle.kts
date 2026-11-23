@@ -98,3 +98,35 @@ tasks.jar {
 tasks.assemble {
     dependsOn(tasks.shadowJar)
 }
+
+// Files the Rust launcher (launcher-rs/) embeds at build time: the mod jar, the XWayland helper class,
+// and LWJGL's LinuxMouse patched by LwjglMousePatch (identical bytes to what this launcher produces).
+val lwjglUrl = "https://libraries.minecraft.net/org/lwjgl/lwjgl/lwjgl/2.9.4-nightly-20150209/lwjgl-2.9.4-nightly-20150209.jar"
+val lwjglSha1 = "697517568c68e78ae0b4544145af031c81082dfe"
+val rustBundleDir = rootProject.layout.projectDirectory.dir("launcher-rs/bundle")
+
+val rustBundlePatch by tasks.registering(JavaExec::class) {
+    group = "larp"
+    description = "Patch LWJGL's LinuxMouse for the Rust launcher bundle."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("dev.larpclient.launcher.game.RustBundle")
+    val cache = layout.buildDirectory.file("rust-bundle/lwjgl-2.9.4-nightly-20150209.jar")
+    args(lwjglUrl, lwjglSha1, cache.get().asFile.absolutePath, rustBundleDir.asFile.absolutePath)
+    inputs.property("lwjglSha1", lwjglSha1)
+    outputs.file(rustBundleDir.file("LinuxMouse.class"))
+    outputs.file(rustBundleDir.file("lwjgl.sha1"))
+}
+
+tasks.register<Copy>("rustBundle") {
+    group = "larp"
+    description = "Write the files the Rust launcher embeds to launcher-rs/bundle/."
+    dependsOn(rustBundlePatch)
+    from(modJar) { rename { "larpclient.jar" } }
+    from(gamepatch.output.classesDirs) {
+        include("org/lwjgl/opengl/LarpWindowSizeCache.class")
+        eachFile { path = name }
+        includeEmptyDirs = false
+    }
+    into(rustBundleDir)
+}
+
