@@ -47,7 +47,8 @@ public final class Installer {
         this.files = files;
     }
 
-    public InstalledGame install(Progress progress) throws IOException {
+    public InstalledGame install(Progress reporter) throws IOException {
+        Progress progress = Progress.monotonic(reporter);
         progress.update("Fetching Minecraft " + MC_VERSION + " metadata", -1);
         JsonObject vanilla = vanillaJson();
 
