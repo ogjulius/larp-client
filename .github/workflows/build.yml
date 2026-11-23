@@ -77,6 +77,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: launcher-rs
+          # The default key is only "Linux-x64": without this, objects built on ubuntu-latest's newer
+          # glibc (e.g. aws-lc-sys's C code) are restored here and fail to link (__isoc23_sscanf).
+          key: ubuntu-22.04
       - name: Install Xvfb and GUI dependencies
         # x11-xserver-utils provides xrandr: LWJGL 2 runs it to list display modes and the game
         # crashes in LinuxDisplay.getAvailableDisplayModes (ArrayIndexOutOfBoundsException: 0) without it.
