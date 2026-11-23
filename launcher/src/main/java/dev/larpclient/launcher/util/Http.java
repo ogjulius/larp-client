@@ -168,7 +168,7 @@ public final class Http {
         public final int status;
         public final String body;
 
-        HttpStatusException(int status, String url, String body) {
+        public HttpStatusException(int status, String url, String body) {
             super("HTTP " + status + " for " + url);
             this.status = status;
             this.body = body;
