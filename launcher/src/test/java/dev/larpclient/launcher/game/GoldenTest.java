@@ -115,4 +115,30 @@ class GoldenTest {
                 game.classpath, ":");
         check("command-linux.json", GSON.toJson(cmd));
     }
+
+    /** Files as the Java launcher writes them: the Rust launcher must read these and write compatible ones. */
+    @Test
+    void configFilesWrittenByJava(@TempDir Path tmp) throws IOException {
+        LauncherSettings settings = LauncherSettings.load(tmp.resolve("launcher.json"));
+        settings.memoryMb = 4096;
+        settings.javaPath = "/usr/lib/jvm/java-8-openjdk/bin/java";
+        settings.fullscreen = true;
+        settings.microsoftClientId = "00000000-0000-0000-0000-000000000000";
+        settings.save();
+        check("compat-launcher.json", Files.readString(tmp.resolve("launcher.json")));
+
+        dev.larpclient.launcher.auth.AccountStore store = new dev.larpclient.launcher.auth.AccountStore(tmp.resolve("accounts.json"));
+        store.add(Account.offline("Steve"));
+        Account ms = new Account();
+        ms.type = Account.Type.MICROSOFT;
+        ms.username = "Alex";
+        ms.uuid = "0123456789abcdef0123456789abcdef";
+        ms.accessToken = "test-access-token";
+        ms.accessTokenExpiresAt = 1763900000000L;
+        ms.refreshToken = "test-refresh-token";
+        store.add(ms);
+        store.select(store.all().get(0));
+        store.save();
+        check("compat-accounts.json", Files.readString(tmp.resolve("accounts.json")));
+    }
 }

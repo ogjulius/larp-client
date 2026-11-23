@@ -1,0 +1,11 @@
+{
+  "memoryMb": 4096,
+  "javaPath": "/usr/lib/jvm/java-8-openjdk/bin/java",
+  "jvmArgs": "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=30 -XX:+UnlockExperimentalVMOptions -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=50 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=15 -XX:InitiatingHeapOccupancyPercent=20 -XX:+DisableExplicitGC -XX:+UseStringDeduplication -XX:+UseFastAccessorMethods",
+  "threadedGl": true,
+  "width": 1280,
+  "height": 720,
+  "fullscreen": true,
+  "keepLauncherOpen": false,
+  "microsoftClientId": "00000000-0000-0000-0000-000000000000"
+}
