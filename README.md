@@ -47,7 +47,7 @@ Default keys: `Right Shift` menu · `C` zoom · `Left Alt` freelook. You can cha
 
 ## Install
 
-**Quick start:** see [INSTALL.md](INSTALL.md). Download the launcher jar from Releases, run `java -jar larp-launcher-0.1.0.jar`, add a username, and click Launch.
+**Quick start:** see [INSTALL.md](INSTALL.md). Download the launcher jar from Releases, run `java -jar larp-launcher-0.2.0.jar`, add a username, and click Launch.
 
 ### Linux from source
 

@@ -7,10 +7,10 @@
    - Debian / Ubuntu: `sudo apt install openjdk-17-jre`
    - Fedora: `sudo dnf install java-17-openjdk`
    - Windows / macOS: install [Temurin 17](https://adoptium.net/temurin/releases/?version=17)
-2. Download `larp-launcher-0.1.0.jar` from the [latest release](https://github.com/ogjulius/larp-client/releases/latest).
+2. Download `larp-launcher-0.2.0.jar` from the [latest release](https://github.com/ogjulius/larp-client/releases/latest).
 3. Run it:
    ```sh
-   java -jar larp-launcher-0.1.0.jar
+   java -jar larp-launcher-0.2.0.jar
    ```
 4. Click **Add account**, type a username, press **Enter**, then click **Launch**.
    The first launch downloads Minecraft 1.8.9, Forge and Java 8 (about 300 MB) and then starts the game.
@@ -36,7 +36,7 @@ Start **LARP Client** from your app menu or run `larp-client`.
 | Keys | **C** zoom (scroll to adjust), **Left Alt** freelook. Change them in Controls. |
 | Music | Paste a direct `.mp3`/`.wav` link or an MP3 radio stream, then click the track |
 
-**Mod only:** drop `larpclient-0.1.0.jar` into `.minecraft/mods` of any Forge **1.8.9** install.
+**Mod only:** drop `larpclient-0.2.0.jar` into `.minecraft/mods` of any Forge **1.8.9** install.
 
 ## Accounts
 

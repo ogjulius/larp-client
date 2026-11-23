@@ -2152,7 +2152,7 @@ dependencies = [
 
 [[package]]
 name = "larp-app"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "base64 0.23.1",
  "eframe",
@@ -2173,7 +2173,7 @@ dependencies = [
 
 [[package]]
 name = "larp-auth"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "larp-core",
  "larp-net",
@@ -2184,7 +2184,7 @@ dependencies = [
 
 [[package]]
 name = "larp-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "larp-app",
  "larp-auth",
@@ -2197,7 +2197,7 @@ dependencies = [
 
 [[package]]
 name = "larp-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "md-5",
  "serde",
@@ -2207,7 +2207,7 @@ dependencies = [
 
 [[package]]
 name = "larp-install"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hex",
  "larp-core",
@@ -2224,7 +2224,7 @@ dependencies = [
 
 [[package]]
 name = "larp-launch"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "hex",
@@ -2243,7 +2243,7 @@ dependencies = [
 
 [[package]]
 name = "larp-net"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "fastrand",
  "futures",
