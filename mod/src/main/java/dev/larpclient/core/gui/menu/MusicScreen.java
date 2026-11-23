@@ -181,13 +181,13 @@ public final class MusicScreen extends GuiScreen {
         float shuffleRight = autoplayX - 10;
         if (button == 0 && RenderUtil.hovered(mouseX, mouseY, autoplayX, py + 78, tx - autoplayX, 14)) {
             p.setAutoplay(!p.isAutoplay());
-            p.save();
+            p.saveInBackground();
             return;
         }
         if (button == 0 && RenderUtil.hovered(mouseX, mouseY, shuffleRight - Widgets.labeledSwitchWidth("Shuffle"), py + 78,
                 Widgets.labeledSwitchWidth("Shuffle"), 14)) {
             p.setShuffle(!p.isShuffle());
-            p.save();
+            p.saveInBackground();
             return;
         }
         if (button != 0 || !RenderUtil.hovered(mouseX, mouseY, px + 14, listTop(), pw - 28, listHeight())) {
@@ -214,7 +214,7 @@ public final class MusicScreen extends GuiScreen {
     protected void mouseReleased(int mouseX, int mouseY, int state) {
         if (draggingVolume) {
             draggingVolume = false;
-            player().save();
+            player().saveInBackground();
         }
     }
 
