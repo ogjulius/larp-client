@@ -31,8 +31,6 @@ public final class LauncherSettings {
     public boolean fullscreen = false;
     /** When false the launcher exits as soon as Minecraft has started. */
     public boolean keepLauncherOpen = false;
-    /** Azure application (client) ID used for Microsoft sign-in. */
-    public String microsoftClientId = "";
 
     private transient Path file;
     private transient String loadProblem;

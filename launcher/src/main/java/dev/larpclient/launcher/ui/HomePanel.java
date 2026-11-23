@@ -1,7 +1,6 @@
 package dev.larpclient.launcher.ui;
 
 import dev.larpclient.launcher.auth.Account;
-import dev.larpclient.launcher.auth.MicrosoftAuth;
 import dev.larpclient.launcher.game.GameLauncher;
 import dev.larpclient.launcher.game.InstalledGame;
 import dev.larpclient.launcher.game.Installer;
@@ -164,9 +163,9 @@ public final class HomePanel extends HomeBackdrop {
             accountType.setText("Add one to play  ›");
         } else {
             accountName.setText(account.username);
-            accountType.setText((account.type == Account.Type.MICROSOFT ? "Microsoft account" : "Offline profile") + "  ·  switch");
+            accountType.setText("Offline profile  ·  switch");
         }
-        BufferedImage skin = Skins.get(account, frame.files, this::refresh);
+        BufferedImage skin = Skins.get(account, frame.files);
         head = skin == null ? null : GameArt.face(skin, 36);
         if (!hasPanorama) {
             BufferedImage panorama = GameArt.blurredPanorama(frame.files);
@@ -178,7 +177,7 @@ public final class HomePanel extends HomeBackdrop {
         if (game == null) {
             launch.setIdle(account == null ? "Add account" : "Launch");
         }
-        status.setText(account == null ? "Add an offline profile or Microsoft account to play" : "Ready  ·  " + String.format("%.1f GB memory", frame.settings.memoryMb / 1024.0));
+        status.setText(account == null ? "Add an offline profile to play" : "Ready  ·  " + String.format("%.1f GB memory", frame.settings.memoryMb / 1024.0));
         repaint();
     }
 
@@ -208,11 +207,6 @@ public final class HomePanel extends HomeBackdrop {
 
     private void runLaunch(Account account) {
         try {
-            if (account.needsRefresh()) {
-                progress("Refreshing Microsoft sign-in", -1);
-                new MicrosoftAuth(frame.settings.microsoftClientId).refresh(account);
-                frame.accounts.save();
-            }
             InstalledGame installed = new Installer(frame.files).install(this::progress);
             SwingUtilities.invokeLater(this::refresh); // first install: panorama + skins now available
             Path java = JavaRuntime.resolve(frame.settings.javaPath, frame.files, this::progress);

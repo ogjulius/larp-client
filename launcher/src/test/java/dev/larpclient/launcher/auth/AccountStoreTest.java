@@ -63,4 +63,19 @@ class AccountStoreTest {
         store.add(Account.offline("Bob")); // must not NPE on the dropped entries
         assertEquals(2, store.all().size());
     }
+
+    /** A Microsoft account of the same name merges into the existing offline profile; one without a UUID is dropped. */
+    @Test
+    void microsoftAccountMergesIntoTheOfflineProfileOfTheSameName(@TempDir Path dir) throws IOException {
+        Path file = dir.resolve("accounts.json");
+        Files.writeString(file, "{\"accounts\":[{\"type\":\"OFFLINE\",\"username\":\"Steve\","
+                + "\"uuid\":\"5627dd98e6be3c21b8a8e92344183641\"},"
+                + "{\"type\":\"MICROSOFT\",\"username\":\"Steve\",\"uuid\":\"0123\",\"refreshToken\":\"x\"},"
+                + "{\"type\":\"MICROSOFT\",\"username\":\"NoUuid\"}],\"selected\":1}");
+        AccountStore store = new AccountStore(file);
+        assertEquals(1, store.all().size());
+        assertEquals("Steve", store.selected().username);
+        assertEquals(Account.offline("Steve").uuid, store.selected().uuid);
+        assertEquals("0", store.selected().accessToken);
+    }
 }

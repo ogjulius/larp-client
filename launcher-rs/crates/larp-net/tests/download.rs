@@ -182,19 +182,19 @@ async fn cancelled_download_leaves_no_part_file() {
 #[tokio::test]
 async fn api_calls_report_status_and_body() {
     let server = MockServer::start().await;
-    Mock::given(method("POST"))
-        .and(path("/token"))
-        .respond_with(ResponseTemplate::new(400).set_body_string(r#"{"error":"authorization_pending"}"#))
+    Mock::given(method("GET"))
+        .and(path("/manifest.json"))
+        .respond_with(ResponseTemplate::new(404).set_body_string(r#"{"error":"not found"}"#))
         .mount(&server)
         .await;
     let err = net()
-        .post_form(&format!("{}/token", server.uri()), &[("a", "b c")])
+        .get_text(&format!("{}/manifest.json", server.uri()))
         .await
         .unwrap_err();
     match err {
         NetError::Status { status, body, .. } => {
-            assert_eq!(status, 400);
-            assert!(body.contains("authorization_pending"));
+            assert_eq!(status, 404);
+            assert!(body.contains("not found"));
         }
         other => panic!("unexpected {other}"),
     }

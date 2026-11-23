@@ -38,8 +38,8 @@ struct Setup {
 }
 
 impl Setup {
-    /// A fresh config; `accounts` copies the shared compatibility fixture (Steve offline, Alex
-    /// Microsoft).
+    /// A fresh config; `accounts` copies the shared compatibility fixture (offline profiles Steve
+    /// and Alex).
     fn new(accounts: bool) -> Self {
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(dir.path().join("config")).unwrap();
@@ -187,14 +187,6 @@ fn settings_are_saved_as_they_change() {
     let saved = Settings::load(&setup.config().join("launcher.json")).settings;
     assert!(!saved.threaded_gl);
     assert!(saved.keep_launcher_open);
-
-    harness.get_by_label("Microsoft client ID").scroll_to_me();
-    harness.run();
-    type_into(&mut harness, "Microsoft client ID", "  my-client-id ");
-    // The field keeps what was typed (no cursor jumps); the file gets the trimmed ID.
-    assert_eq!(harness.state().model.settings.microsoft_client_id, "  my-client-id ");
-    let saved = Settings::load(&setup.config().join("launcher.json")).settings;
-    assert_eq!(saved.microsoft_client_id, "my-client-id");
 }
 
 #[test]
@@ -225,42 +217,15 @@ fn launch_progress_running_and_failure() {
     snapshot(&mut harness, &mut snapshots, "home_failed");
 }
 
+/// Offline profiles only: there is no Microsoft sign-in anywhere in the launcher.
 #[test]
-fn microsoft_sign_in_dialog() {
+fn there_is_no_microsoft_sign_in() {
     let setup = Setup::new(true);
-    let mut harness = setup.harness(Page::Accounts);
-    harness.get_by_label("Sign in").click();
-    harness.run();
-    // No client ID yet: explained instead of opening a dialog that cannot work.
-    assert!(harness.state().model.sign_in.is_none());
-    assert!(
-        harness
-            .state()
-            .model
-            .accounts_message
-            .as_ref()
-            .unwrap()
-            .text
-            .contains("client ID")
-    );
-
-    harness.state_mut().model.settings.microsoft_client_id = "id".into();
-    harness.get_by_label("Sign in").click();
-    harness.run();
-    assert!(matches!(setup.requests().as_slice(), [.., Request::SignIn { .. }]));
-    setup.send(
-        &mut harness,
-        Event::DeviceCode {
-            user_code: "ABCD-EFGH".into(),
-            uri: "https://www.microsoft.com/link".into(),
-        },
-    );
-    let mut snapshots = SnapshotResults::new();
-    snapshot(&mut harness, &mut snapshots, "sign_in_dialog");
-    harness.get_by_label("Cancel").click();
-    harness.run();
-    assert!(harness.state().model.sign_in.is_none());
-    assert!(matches!(setup.requests().as_slice(), [.., Request::CancelSignIn]));
+    for page in Page::ALL {
+        let harness = setup.harness(page);
+        assert!(harness.query_by_label("Sign in").is_none(), "{page:?}");
+        assert!(harness.query_by_label_contains("Microsoft").is_none(), "{page:?}");
+    }
 }
 
 #[test]

@@ -5,6 +5,10 @@ use serde::{Deserialize, Serialize};
 use std::io;
 use std::path::{Path, PathBuf};
 
+/// Keys older versions wrote that no longer mean anything; dropped on load rather than kept as unknown.
+/// `microsoftClientId`: Microsoft sign-in was removed (offline profiles only).
+const RETIRED_KEYS: &[&str] = &["microsoftClientId"];
+
 /// Previous default, migrated automatically to [`DEFAULT_JVM_ARGS`].
 const OLD_DEFAULT_JVM_ARGS: &str =
     "-XX:+UseG1GC -XX:+UnlockExperimentalVMOptions -XX:G1NewSizePercent=20 -XX:MaxGCPauseMillis=50";
@@ -33,8 +37,6 @@ pub struct Settings {
     pub fullscreen: bool,
     /// When false the launcher exits as soon as Minecraft has started.
     pub keep_launcher_open: bool,
-    /// Azure application (client) ID used for Microsoft sign-in.
-    pub microsoft_client_id: String,
     /// Keys this version doesn't know (e.g. written by a newer launcher) are kept, not dropped.
     #[serde(flatten)]
     pub unknown: serde_json::Map<String, serde_json::Value>,
@@ -51,7 +53,6 @@ impl Default for Settings {
             height: 720,
             fullscreen: false,
             keep_launcher_open: false,
-            microsoft_client_id: String::new(),
             unknown: serde_json::Map::new(),
         }
     }
@@ -107,6 +108,9 @@ impl Settings {
 
     fn normalize(&mut self) {
         self.memory_mb = self.memory_mb.clamp(MIN_MEMORY_MB, MAX_MEMORY_MB);
+        for key in RETIRED_KEYS {
+            self.unknown.remove(*key);
+        }
         if self.jvm_args.trim() == OLD_DEFAULT_JVM_ARGS {
             DEFAULT_JVM_ARGS.clone_into(&mut self.jvm_args);
         }
@@ -138,7 +142,7 @@ mod tests {
         assert_eq!(s.java_path, "/usr/lib/jvm/java-8-openjdk/bin/java");
         assert_eq!(s.jvm_args, DEFAULT_JVM_ARGS);
         assert!(s.fullscreen && s.threaded_gl && !s.keep_launcher_open);
-        assert_eq!(s.microsoft_client_id, "00000000-0000-0000-0000-000000000000");
+        assert!(s.unknown.is_empty());
     }
 
     #[test]
@@ -194,5 +198,16 @@ mod tests {
         assert_eq!(s.jvm_args, DEFAULT_JVM_ARGS);
         s.save(&file).unwrap();
         assert!(fs::read_to_string(&file).unwrap().contains("\"futureKey\""));
+    }
+
+    #[test]
+    fn microsoft_client_id_from_older_versions_is_dropped() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("launcher.json");
+        fs::write(&file, r#"{"memoryMb": 4096, "microsoftClientId": "abc"}"#).unwrap();
+        let s = Settings::load(&file).settings;
+        assert!(s.unknown.is_empty());
+        s.save(&file).unwrap();
+        assert!(!fs::read_to_string(&file).unwrap().contains("microsoftClientId"));
     }
 }

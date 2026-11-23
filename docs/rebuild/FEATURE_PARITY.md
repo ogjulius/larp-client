@@ -13,10 +13,9 @@ Legend: ✅ works · ⚠️ works with known issue (see TECHNICAL_AUDIT.md) · �
 | SHA-1 verified, parallel, resumable downloads | `Http.download`, `Installer` | ⚠️ A10 | 🦀 | ✅ |
 | Java 8 discovery / Mojang `jre-legacy` download | `JavaRuntime` | ✅ | 🦀 | ✅ |
 | Log4Shell-safe logging config | `Installer`, `GameLauncher` | ✅ | 🦀 | ✅ |
-| Microsoft sign-in (device code → XBL → XSTS → MC) | `MicrosoftAuth` | ✅ (needs approved Azure ID) | 🦀 | ✅ tested against a mock server; live sign-in needs the approved Azure ID |
-| Token refresh before launch | `HomePanel`, `Cli` | ✅ | 🦀 | ✅ |
+| Microsoft sign-in and token refresh | removed | — | — | — Removed from both launchers on 2026-11-23: offline profiles only. Old Microsoft entries in `accounts.json` become offline profiles |
 | Offline profiles (vanilla-compatible UUID) | `Account.offline` | ✅ | 🦀 | ✅ |
-| Account storage, owner-only file | `AccountStore` | ⚠️ A1, A2 | 🦀 (OS keyring when available, 0600 file fallback) | ⚠️ owner-only file, same as Java. The OS keyring waits for Phase 4: both launchers share `accounts.json` while they ship side by side |
+| Account storage, owner-only file | `AccountStore` | ✅ A1, A2 fixed | 🦀 | ✅ owner-only file, same format as Java. No keyring needed: there are no tokens to keep |
 | Settings: memory, resolution, fullscreen, Java path, JVM args, threaded GL, keep-open | `LauncherSettings`, `SettingsPanel` | ⚠️ A3, A4 | 🦀 | ✅ (A20 fixed in both launchers) |
 | Tuned G1 flags, `-Xms = -Xmx`, Mesa/NVIDIA threaded GL env, vsync env | `GameLauncher` | ✅ | 🦀 | ✅ |
 | Bundled mod install (hash-checked), stale copy cleanup | `GameLauncher.prepareInstance` | ✅ | 🦀 | ✅ |

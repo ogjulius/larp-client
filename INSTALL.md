@@ -53,9 +53,9 @@ Start **LARP Client** from your app menu or run `larp-client`.
 
 ## Accounts
 
-- **Offline profile** works right away for singleplayer and offline-mode servers.
-- **Microsoft account** (needed for online servers like Hypixel) requires an Azure app ID approved
-  for Minecraft. Paste it in *Launcher → Settings → Microsoft sign-in*. See [DEVELOPMENT.md](DEVELOPMENT.md#microsoft-sign-in).
+LARP uses **offline (non-premium) profiles** only: type any username (3–16 letters, numbers or
+underscores) and play. They work in singleplayer and on offline-mode servers. Servers that require a
+premium (Microsoft) account will refuse the connection. Microsoft sign-in is not supported.
 
 ## Troubleshooting
 

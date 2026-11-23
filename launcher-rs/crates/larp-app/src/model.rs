@@ -3,8 +3,8 @@
 //! the backend, whose results come back as [`Event`]s. That keeps every behaviour testable.
 
 use crate::art::{self, Image};
-use larp_core::{Account, AccountKind, AccountStore, GameFiles, Settings};
-use std::collections::{HashMap, HashSet, VecDeque};
+use larp_core::{Account, AccountStore, GameFiles, Settings};
+use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -56,30 +56,16 @@ impl Launch {
     }
 }
 
-/// The Microsoft sign-in dialog.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SignIn {
-    Requesting,
-    Code { user_code: String, uri: String },
-}
-
 /// Work for the backend.
 #[derive(Debug, Clone)]
 pub enum Request {
-    /// Refresh the sign-in if needed, install, and start the game.
+    /// Install or verify the game, then start it.
     Launch {
         account: Account,
         settings: Box<Settings>,
     },
-    SignIn {
-        client_id: String,
-    },
-    CancelSignIn,
     /// Read the panorama and default skins from the client jar.
     LoadArt,
-    FetchSkin {
-        uuid: String,
-    },
     /// Open a folder or URL with the desktop's default application.
     Open(String),
     PickJava,
@@ -93,7 +79,6 @@ pub enum Event {
         fraction: Option<f64>,
     },
     Log(String),
-    AccountRefreshed(Account),
     /// The game is running and the launcher stays open.
     Running,
     /// The game exited or the launch failed; `error` is shown under the Launch button.
@@ -103,17 +88,6 @@ pub enum Event {
     /// The game was started detached and survived its first seconds: close the launcher.
     Quit,
     Art(art::GameArt),
-    Skin {
-        uuid: String,
-        skin: Image,
-    },
-    DeviceCode {
-        user_code: String,
-        uri: String,
-    },
-    SignedIn(Account),
-    /// Sign-in failed; `None` when the user cancelled.
-    SignInFailed(Option<String>),
     JavaPicked(PathBuf),
 }
 
@@ -180,14 +154,11 @@ pub struct Model {
     pub offline_name: String,
     /// Set when Launch was pressed without an account: the UI focuses the username field once.
     pub focus_username: bool,
-    pub sign_in: Option<SignIn>,
     /// Problems found while loading settings or accounts, shown once at start.
     pub problems: Vec<String>,
     pub art: art::GameArt,
-    /// Bumped whenever `art` or `skins` change, so the UI re-uploads textures.
+    /// Bumped whenever `art` changes, so the UI re-uploads textures.
     pub art_generation: u64,
-    skins: HashMap<String, Arc<Image>>,
-    skins_requested: HashSet<String>,
     /// Total system memory, for the memory slider's range.
     pub total_memory_mb: u64,
     outbox: Vec<Request>,
@@ -200,7 +171,7 @@ impl Model {
         let mut problems = Vec::new();
         problems.extend(loaded.problem.clone());
         problems.extend(accounts.load_problem().map(str::to_owned));
-        let mut model = Self {
+        Self {
             files,
             settings: loaded.settings,
             settings_file: loaded.file,
@@ -212,17 +183,12 @@ impl Model {
             accounts_message: None,
             offline_name: String::new(),
             focus_username: false,
-            sign_in: None,
             problems,
             art: art::GameArt::default(),
             art_generation: 0,
-            skins: HashMap::new(),
-            skins_requested: HashSet::new(),
             total_memory_mb,
             outbox: vec![Request::LoadArt],
-        };
-        model.request_skins();
-        model
+        }
     }
 
     /// Requests produced since the last call.
@@ -232,9 +198,6 @@ impl Model {
 
     pub fn show(&mut self, page: Page) {
         self.page = page;
-        if page == Page::Accounts {
-            self.request_skins();
-        }
     }
 
     /// The folder holding `launcher.json` and `accounts.json`.
@@ -267,7 +230,7 @@ impl Model {
             return (error.clone(), true);
         }
         if self.accounts.selected().is_none() {
-            ("Add an offline profile or Microsoft account to play".into(), false)
+            ("Add an offline profile to play".into(), false)
         } else {
             (
                 format!("Ready  ·  {:.1} GB memory", self.settings.memory_mb as f64 / 1024.0),
@@ -321,25 +284,6 @@ impl Model {
         self.save_accounts();
     }
 
-    pub fn sign_in_clicked(&mut self) {
-        let client_id = self.settings.microsoft_client_id.trim().to_owned();
-        if client_id.is_empty() {
-            self.message(
-                "Microsoft sign-in needs an approved Azure client ID — set it in Settings.",
-                true,
-            );
-            return;
-        }
-        self.sign_in = Some(SignIn::Requesting);
-        self.outbox.push(Request::SignIn { client_id });
-    }
-
-    pub fn cancel_sign_in(&mut self) {
-        if self.sign_in.take().is_some() {
-            self.outbox.push(Request::CancelSignIn);
-        }
-    }
-
     fn message(&mut self, text: &str, error: bool) {
         self.accounts_message = Some(Message {
             text: text.to_owned(),
@@ -352,38 +296,21 @@ impl Model {
             self.message(&format!("Could not save accounts: {e}"), true);
         }
         self.home_error = None;
-        self.request_skins();
     }
 
-    /// The skin to draw for `account`: its own (Microsoft accounts, once fetched) or the default
-    /// Steve/Alex skin the game would give it.
+    /// The skin to draw for `account`: the default Steve/Alex skin the game gives that offline
+    /// profile.
     pub fn skin(&self, account: Option<&Account>) -> Option<Arc<Image>> {
-        if let Some(own) = account.and_then(|a| self.skins.get(&a.uuid)) {
-            return Some(own.clone());
-        }
         let slim = account.is_some_and(|a| art::is_slim(&a.uuid));
         let default = if slim { &self.art.alex } else { &self.art.steve };
         default.clone().map(Arc::new)
     }
 
-    fn request_skins(&mut self) {
-        for account in self.accounts.all() {
-            if account.kind == AccountKind::Microsoft && self.skins_requested.insert(account.uuid.clone()) {
-                self.outbox.push(Request::FetchSkin {
-                    uuid: account.uuid.clone(),
-                });
-            }
-        }
-    }
-
     // ---- Settings
 
-    /// Persist the settings after any change. Text fields keep exactly what was typed; the file gets
-    /// the client ID trimmed (as the Java launcher saved it).
+    /// Persist the settings after any change.
     pub fn settings_changed(&mut self) {
-        let mut saved = self.settings.clone();
-        saved.microsoft_client_id = saved.microsoft_client_id.trim().to_owned();
-        if let Err(e) = saved.save(&self.settings_file) {
+        if let Err(e) = self.settings.save(&self.settings_file) {
             self.console.push(format!("[launcher] Could not save settings: {e}"));
         }
     }
@@ -425,12 +352,6 @@ impl Model {
                 self.launch = Launch::busy("Preparing", detail, fraction);
             }
             Event::Log(line) => self.console.push(line),
-            Event::AccountRefreshed(account) => {
-                self.accounts.update(account);
-                if let Err(e) = self.accounts.save() {
-                    self.console.push(format!("[launcher] Could not save accounts: {e}"));
-                }
-            }
             Event::Running => self.launch = Launch::busy("Running", "Minecraft is open", Some(1.0)),
             Event::Finished { error } => {
                 self.launch = Launch::Idle;
@@ -443,28 +364,6 @@ impl Model {
                 self.art.steve = art.steve.or(self.art.steve.take());
                 self.art.alex = art.alex.or(self.art.alex.take());
                 self.art_generation += 1;
-            }
-            Event::Skin { uuid, skin } => {
-                self.skins.insert(uuid, Arc::new(skin));
-                self.art_generation += 1;
-            }
-            Event::DeviceCode { user_code, uri } => {
-                if self.sign_in.is_some() {
-                    self.sign_in = Some(SignIn::Code { user_code, uri });
-                }
-            }
-            Event::SignedIn(account) => {
-                self.sign_in = None;
-                let name = account.username.clone();
-                self.accounts.add(account);
-                self.save_accounts();
-                self.message(&format!("Signed in as {name}."), false);
-            }
-            Event::SignInFailed(error) => {
-                self.sign_in = None;
-                if let Some(error) = error {
-                    self.message(&error, true);
-                }
             }
             Event::JavaPicked(path) => {
                 self.settings.java_path = path.display().to_string();
@@ -567,62 +466,6 @@ mod tests {
     }
 
     #[test]
-    fn sign_in_needs_a_client_id_and_can_be_cancelled() {
-        let (_dir, mut m) = model();
-        m.take_requests();
-        m.sign_in_clicked();
-        assert!(m.sign_in.is_none());
-        assert!(m.accounts_message.as_ref().unwrap().text.contains("client ID"));
-
-        m.settings.microsoft_client_id = " abc ".into();
-        m.sign_in_clicked();
-        assert!(matches!(m.take_requests().as_slice(), [Request::SignIn { client_id }] if client_id == "abc"));
-        m.handle(Event::DeviceCode {
-            user_code: "ABCD-1234".into(),
-            uri: "https://microsoft.com/link".into(),
-        });
-        assert!(matches!(&m.sign_in, Some(SignIn::Code { user_code, .. }) if user_code == "ABCD-1234"));
-        m.cancel_sign_in();
-        assert!(matches!(m.take_requests().as_slice(), [Request::CancelSignIn]));
-        // A late code after cancelling does not reopen the dialog; a cancelled error says nothing.
-        m.handle(Event::DeviceCode {
-            user_code: "late".into(),
-            uri: String::new(),
-        });
-        assert!(m.sign_in.is_none());
-        m.accounts_message = None;
-        m.handle(Event::SignInFailed(None));
-        assert!(m.accounts_message.is_none());
-    }
-
-    #[test]
-    fn signed_in_account_is_added_selected_and_its_skin_requested() {
-        let (_dir, mut m) = model();
-        m.take_requests();
-        let mut account = Account::offline("Alex");
-        account.kind = AccountKind::Microsoft;
-        m.handle(Event::SignedIn(account.clone()));
-        assert_eq!(m.accounts.selected().unwrap().uuid, account.uuid);
-        assert!(matches!(m.take_requests().as_slice(), [Request::FetchSkin { uuid }] if *uuid == account.uuid));
-        assert_eq!(m.accounts_message.as_ref().unwrap().text, "Signed in as Alex.");
-    }
-
-    #[test]
-    fn refreshed_account_is_written_back_in_place() {
-        let (dir, mut m) = model();
-        for name in ["One", "Two"] {
-            m.offline_name = name.into();
-            m.add_offline();
-        }
-        let mut refreshed = Account::offline("One");
-        refreshed.access_token_expires_at = 99;
-        m.handle(Event::AccountRefreshed(refreshed));
-        let saved = AccountStore::load(&dir.path().join("config/accounts.json"));
-        assert_eq!(saved.all()[0].access_token_expires_at, 99);
-        assert_eq!(saved.selected().unwrap().username, "Two");
-    }
-
-    #[test]
     fn skins_fall_back_to_the_default_for_the_profile() {
         let (_dir, mut m) = model();
         let steve = Image::new(64, 64);
@@ -636,12 +479,6 @@ mod tests {
         // Offline "Steve" gets the slim (Alex) skin, as in the game.
         assert_eq!(*m.skin(Some(&Account::offline("Steve"))).unwrap(), alex);
         assert_eq!(*m.skin(Some(&Account::offline("Dev"))).unwrap(), steve);
-        let own = Image::new(64, 32);
-        m.handle(Event::Skin {
-            uuid: Account::offline("Dev").uuid,
-            skin: own.clone(),
-        });
-        assert_eq!(*m.skin(Some(&Account::offline("Dev"))).unwrap(), own);
         // A failed art reload keeps the old art.
         m.handle(Event::Art(art::GameArt::default()));
         assert!(m.art.steve.is_some());

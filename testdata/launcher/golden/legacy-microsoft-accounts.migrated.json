@@ -1,0 +1,17 @@
+{
+  "accounts": [
+    {
+      "type": "OFFLINE",
+      "username": "Steve",
+      "uuid": "5627dd98e6be3c21b8a8e92344183641",
+      "accessToken": "0"
+    },
+    {
+      "type": "OFFLINE",
+      "username": "Alex",
+      "uuid": "36532b5ec4423dbba24cc7e55d0f979a",
+      "accessToken": "0"
+    }
+  ],
+  "selected": 1
+}

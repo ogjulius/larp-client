@@ -4,16 +4,13 @@
       "type": "OFFLINE",
       "username": "Steve",
       "uuid": "5627dd98e6be3c21b8a8e92344183641",
-      "accessToken": "0",
-      "accessTokenExpiresAt": 0
+      "accessToken": "0"
     },
     {
-      "type": "MICROSOFT",
+      "type": "OFFLINE",
       "username": "Alex",
-      "uuid": "0123456789abcdef0123456789abcdef",
-      "accessToken": "test-access-token",
-      "accessTokenExpiresAt": 1763900000000,
-      "refreshToken": "test-refresh-token"
+      "uuid": "36532b5ec4423dbba24cc7e55d0f979a",
+      "accessToken": "0"
     }
   ],
   "selected": 0

@@ -9,7 +9,6 @@ use crate::widgets;
 use eframe::egui::{
     self, Color32, CursorIcon, Rect, Role, Sense, Stroke, StrokeKind, Ui, UiBuilder, WidgetInfo, pos2, vec2,
 };
-use larp_core::AccountKind;
 use larp_core::files::MC_VERSION;
 use std::time::Duration;
 
@@ -219,17 +218,7 @@ fn account_card(ui: &mut Ui, model: &mut Model, textures: &mut Textures, top_rig
     let account = model.accounts.selected().cloned();
     let (name, kind) = match &account {
         None => ("No account".to_owned(), "Add one to play  ›".to_owned()),
-        Some(a) => (
-            a.username.clone(),
-            format!(
-                "{}  ·  switch",
-                if a.kind == AccountKind::Microsoft {
-                    "Microsoft account"
-                } else {
-                    "Offline profile"
-                }
-            ),
-        ),
+        Some(a) => (a.username.clone(), "Offline profile  ·  switch".to_owned()),
     };
     let name_g = widgets::galley(ui, &name, theme::semibold(14.0), theme::TEXT, 0.0);
     let kind_g = widgets::galley(ui, &kind, theme::regular(12.0), theme::TEXT_DIM, 0.0);

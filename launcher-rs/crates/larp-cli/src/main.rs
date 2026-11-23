@@ -5,7 +5,6 @@
 mod args;
 
 use args::{Args, Mode};
-use larp_auth::MicrosoftAuth;
 use larp_core::{Account, AccountStore, Dirs, GameFiles, Os, Settings};
 use larp_install::Progress;
 use larp_launch::{command, pipeline, process};
@@ -13,7 +12,6 @@ use larp_net::Net;
 use std::error::Error;
 use std::process::ExitCode;
 use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 fn main() -> ExitCode {
     let args = match Args::parse(std::env::args().skip(1)) {
@@ -83,12 +81,6 @@ impl Progress for Printer {
     }
 }
 
-fn now_millis() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX))
-}
-
 async fn run(args: Args) -> Result<ExitCode, Box<dyn Error>> {
     match args.mode {
         Mode::Help => {
@@ -114,7 +106,7 @@ async fn run(args: Args) -> Result<ExitCode, Box<dyn Error>> {
         eprintln!("[larp] warning: {problem}");
     }
     let settings = loaded.settings;
-    let mut accounts = AccountStore::load(&dirs.config.join("accounts.json"));
+    let accounts = AccountStore::load(&dirs.config.join("accounts.json"));
     if let Some(problem) = accounts.load_problem() {
         eprintln!("[larp] warning: {problem}");
     }
@@ -137,21 +129,11 @@ async fn run(args: Args) -> Result<ExitCode, Box<dyn Error>> {
             Account::offline(name)
         }
         None => {
-            let Some(account) = accounts.selected_mut() else {
-                eprintln!("No account selected; pass --offline NAME or add one in the launcher");
+            let Some(account) = accounts.selected() else {
+                eprintln!("No profile selected; pass --offline NAME or add one in the launcher");
                 return Ok(ExitCode::from(2));
             };
-            if account.needs_refresh(now_millis()) {
-                println!("[larp] Refreshing Microsoft sign-in");
-                MicrosoftAuth::new(&settings.microsoft_client_id, net.clone())?
-                    .refresh(account)
-                    .await?;
-                let account = account.clone();
-                accounts.save()?;
-                account
-            } else {
-                account.clone()
-            }
+            account.clone()
         }
     };
 

@@ -123,22 +123,28 @@ class GoldenTest {
         settings.memoryMb = 4096;
         settings.javaPath = "/usr/lib/jvm/java-8-openjdk/bin/java";
         settings.fullscreen = true;
-        settings.microsoftClientId = "00000000-0000-0000-0000-000000000000";
         settings.save();
         check("compat-launcher.json", Files.readString(tmp.resolve("launcher.json")));
 
         dev.larpclient.launcher.auth.AccountStore store = new dev.larpclient.launcher.auth.AccountStore(tmp.resolve("accounts.json"));
         store.add(Account.offline("Steve"));
-        Account ms = new Account();
-        ms.type = Account.Type.MICROSOFT;
-        ms.username = "Alex";
-        ms.uuid = "0123456789abcdef0123456789abcdef";
-        ms.accessToken = "test-access-token";
-        ms.accessTokenExpiresAt = 1763900000000L;
-        ms.refreshToken = "test-refresh-token";
-        store.add(ms);
+        store.add(Account.offline("Alex"));
         store.select(store.all().get(0));
         store.save();
         check("compat-accounts.json", Files.readString(tmp.resolve("accounts.json")));
+    }
+
+    /** An accounts file from an older version with a Microsoft account: both launchers migrate it identically. */
+    @Test
+    void microsoftAccountsBecomeOfflineProfiles(@TempDir Path tmp) throws IOException {
+        Path file = tmp.resolve("accounts.json");
+        Files.copy(DATA.resolve("golden").resolve("legacy-microsoft-accounts.json"), file);
+        dev.larpclient.launcher.auth.AccountStore store = new dev.larpclient.launcher.auth.AccountStore(file);
+        assertEquals(null, store.loadProblem());
+        assertEquals("Alex", store.selected().username);
+        String saved = Files.readString(file); // rewritten on load, without waiting for a save
+        assertEquals(false, saved.contains("token-"), saved);
+        assertEquals(Files.readString(DATA.resolve("golden").resolve("legacy-microsoft-accounts.migrated.json")).trim(),
+                saved.trim());
     }
 }
