@@ -10,6 +10,6 @@ pub mod progress;
 pub mod rules;
 
 pub use error::InstallError;
-pub use installer::{Endpoints, FORGE_VERSION, InstalledGame, Installer};
+pub use installer::{Endpoints, FORGE_INSTALL_PROFILE, FORGE_VERSION, InstalledGame, Installer};
 pub use libraries::Library;
 pub use progress::{Monotonic, Progress};

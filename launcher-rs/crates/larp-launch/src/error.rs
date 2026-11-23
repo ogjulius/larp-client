@@ -22,7 +22,7 @@ pub enum LaunchError {
     Java(String),
     #[error("unexpected metadata: {0}")]
     Metadata(String),
-    #[error("this launcher build has no bundled LARP mod (build it with ./gradlew :launcher:rustBundle first)")]
+    #[error("this launcher build has no bundled LARP mod (build it with ./gradlew :bundle:rustBundle first)")]
     NoBundle,
     #[error(transparent)]
     Net(#[from] larp_net::NetError),

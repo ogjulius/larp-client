@@ -62,9 +62,9 @@ pub fn bold(size: f32) -> FontId {
 }
 
 /// Inter, bundled with the Java launcher (SIL Open Font License, see Inter-LICENSE.txt there).
-const INTER_REGULAR: &[u8] = include_bytes!("../../../../launcher/src/main/resources/larp/fonts/Inter-Regular.ttf");
-const INTER_SEMIBOLD: &[u8] = include_bytes!("../../../../launcher/src/main/resources/larp/fonts/Inter-SemiBold.ttf");
-const INTER_BOLD: &[u8] = include_bytes!("../../../../launcher/src/main/resources/larp/fonts/Inter-Bold.ttf");
+const INTER_REGULAR: &[u8] = include_bytes!("../assets/fonts/Inter-Regular.ttf");
+const INTER_SEMIBOLD: &[u8] = include_bytes!("../assets/fonts/Inter-SemiBold.ttf");
+const INTER_BOLD: &[u8] = include_bytes!("../assets/fonts/Inter-Bold.ttf");
 
 fn fonts() -> FontDefinitions {
     let mut fonts = FontDefinitions::default();

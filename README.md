@@ -47,21 +47,19 @@ Default keys: `Right Shift` menu · `C` zoom · `Left Alt` freelook. You can cha
 
 ## Install
 
-**Quick start:** see [INSTALL.md](INSTALL.md). Download the launcher jar from Releases, run `java -jar larp-launcher-0.2.0.jar`, add a username, and click Launch.
+**Quick start:** see [INSTALL.md](INSTALL.md). Download `larp-client-<ver>-linux-x86_64` from Releases, make it
+executable, run it, add a username, and click Launch. LARP Client targets Linux on Hyprland; the launcher is a
+native program (Rust), so no Java is needed to run it. The game's Java 8 is found or downloaded automatically.
 
 ### Linux from source
 
-You need Java 17+ for the launcher. The game's Java 8 is found or downloaded automatically.
-
 ```sh
 git clone https://github.com/ogjulius/larp-client && cd larp-client
-./scripts/install-linux.sh
+./scripts/install-linux.sh      # needs JDK 8 + 17 (to build the mod) and Rust
 ```
 
 This adds **LARP Client** to your application menu and a `larp-client` command.
 Game files live in `~/.local/share/larpclient` and settings in `~/.config/larpclient` (XDG dirs honoured).
-
-On other platforms, build with `./gradlew build` and run `java -jar launcher/build/libs/larp-launcher-<ver>.jar`.
 
 ### Using only the mod
 
@@ -71,8 +69,9 @@ On other platforms, build with `./gradlew build` and run `java -jar launcher/bui
 ## Building
 
 ```sh
-sudo pacman -S --needed jdk8-openjdk jdk17-openjdk      # Arch / CachyOS
-JAVA_HOME=/usr/lib/jvm/java-17-openjdk ./gradlew build
+sudo pacman -S --needed jdk8-openjdk jdk17-openjdk rust   # Arch / CachyOS
+JAVA_HOME=/usr/lib/jvm/java-17-openjdk ./gradlew build :bundle:rustBundle   # the mod + launcher bundle
+cargo build --release -p larp-cli --manifest-path launcher-rs/Cargo.toml   # the launcher
 ```
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for the architecture and how to contribute.

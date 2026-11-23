@@ -8,7 +8,7 @@
 #      once with the launcher staying open, once handing the game off and closing). Skip this step
 #      with LARP_E2E_SKIP_GUI=1, e.g. when only a launcher binary is available.
 #
-# Needs: a release build with the bundle embedded (./gradlew :launcher:rustBundle, then
+# Needs: a release build with the bundle embedded (./gradlew :bundle:rustBundle, then
 # cargo build --release -p larp-cli), Java 8 in $JAVA_HOME or a standard location (else Mojang's runtime is downloaded), xvfb-run,
 # xrandr (LWJGL 2 runs it; the game crashes at startup without it), network.
 # Usage: scripts/e2e.sh [path/to/larp-client]   (never touches your real launcher data)

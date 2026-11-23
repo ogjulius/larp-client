@@ -1,18 +1,22 @@
 # Development Guide
 
-The repository is a Gradle multi-project build:
+The repository has three parts:
 
-| Project | What | Java |
+| Part | What | Language |
 |---|---|---|
-| `mod/` | Forge 1.8.9 mod, runs inside the game | 8 |
-| `launcher/` | Desktop launcher (Swing + FlatLaf). Installs and starts the game and bundles the mod jar | 17 |
+| `mod/` (Gradle) | Forge 1.8.9 mod, runs inside the game | Java 8 |
+| `bundle/` (Gradle) | Build-time files the launcher embeds: the mod jar, the XWayland helper class and LWJGL's patched `LinuxMouse` | Java 17 (helper: 8) |
+| `launcher-rs/` (Cargo) | The launcher: installs and starts the game, GUI and headless CLI | Rust |
 
 ```sh
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
-./gradlew build                 # everything + tests
-./gradlew :mod:runGame          # dev game with the mod (deobfuscated)
-./gradlew :launcher:run         # launcher from source
-java -jar launcher/build/libs/larp-launcher-*.jar --launch --offline Dev   # headless end-to-end
+./gradlew build :bundle:rustBundle          # mod + tests, then the launcher bundle
+./gradlew :mod:runGame                      # dev game with the mod (deobfuscated)
+cd launcher-rs
+cargo test --workspace                      # launcher tests (UI snapshots included)
+cargo run --release -p larp-cli             # the launcher from source
+cargo run --release -p larp-cli -- --launch --offline Dev   # headless end-to-end
+scripts/e2e.sh                              # full end-to-end test (boots the game under Xvfb)
 ```
 
 ## Mod toolchain
@@ -157,8 +161,9 @@ LWJGL 2's `LinuxMouse` calls `XGetGeometry` (a blocking X round trip) up to thre
 pointer-motion event. Under XWayland each round trip can take milliseconds. With a 1000 Hz mouse,
 the client thread falls seconds behind and the window looks frozen ("not responding"), windowed or
 fullscreen. Because LWJGL is loaded by the system class loader, a Mixin can't fix this. Instead, the
-launcher's `LwjglMousePatch` uses ASM to redirect those calls to `org.lwjgl.opengl.LarpWindowSizeCache`
-(source set `launcher/src/gamepatch`, compiled for Java 8), which caches the size for 50 ms. The game
+build's `LwjglMousePatch` (`bundle/`) uses ASM to redirect those calls to `org.lwjgl.opengl.LarpWindowSizeCache`
+(source set `bundle/src/gamepatch`, compiled for Java 8), which caches the size for 50 ms. The launcher
+embeds both classes and verifies the LWJGL jar's SHA-1 before splicing them in. The game
 then runs on a patched copy of the LWJGL jar in `<data>/patches/` (a full copy, because LWJGL's packages
 are sealed). The copy's name includes the source jar's SHA-1, so it's rebuilt whenever LWJGL changes. Measured on Hyprland 0.57 with an RTX 2060 and a virtual 1000 Hz mouse: before the patch
 the game froze indefinitely; after it, the menu holds 120 FPS while handling about 925 motion events/s.
@@ -182,7 +187,7 @@ the user is in, so synthetic input can end up somewhere else. Use an isolated X 
 
 ```sh
 Xvfb :77 -screen 0 1280x720x24 +extension GLX &
-DISPLAY=:77 WAYLAND_DISPLAY= java -jar launcher/build/libs/larp-launcher-*.jar --launch --offline Dev
+DISPLAY=:77 WAYLAND_DISPLAY= larp-client --launch --offline Dev
 DISPLAY=:77 import -window root shot.png     # screenshot (ImageMagick)
 ```
 
@@ -199,38 +204,37 @@ Pause blocks the worker on a monitor, and switching tracks cancels the old worke
 
 ## Launcher architecture
 
+Cargo workspace `launcher-rs/` (details in docs/rebuild/ARCHITECTURE.md):
+
 ```
-dev.larpclient.launcher
-├── Main / Cli            GUI entry point; headless --launch / --install-only / --export-icon
-├── game
-│   ├── Installer         vanilla JSON → client jar → Forge installer (universal jar + install_profile)
-│   │                     → libraries (rules, natives, mirrors) → natives → assets → log4j config
-│   ├── JavaRuntime       configured path → system Java 8 → Mojang "jre-legacy" download
-│   ├── GameLauncher      instance prep (mod jar, themed Forge splash), command line, process + log pump
-│   └── Log4jXmlFormatter turns Mojang's XML log output back into readable lines
-├── auth                  Account (offline profiles), AccountStore (0600 file)
-├── config                LauncherSettings
-└── ui                    LauncherFrame, Home/Accounts/Settings/Console pages, custom-painted components
+larp-core     XDG paths, Settings (launcher.json), offline accounts (accounts.json, 0600), atomic writes
+larp-net      verified downloads: SHA-1, bounded parallelism, retries with backoff
+larp-install  vanilla JSON → client jar → Forge (universal jar + install profile) → libraries
+              (rules, natives) → natives → assets → log4j config
+larp-launch   Java 8 discovery / Mojang "jre-legacy" download, command line, LWJGL patch splice,
+              process (attached, or detached with a crash check), log4j XML → lines
+larp-app      the egui window: Home / Accounts / Settings / Console
+larp-cli      the `larp-client` binary: GUI without arguments; --launch / --install-only / --export-icon
 ```
 
-Files: `$XDG_DATA_HOME/larpclient` (`libraries/ assets/ versions/ runtime/ instance/`) and
+Files: `$XDG_DATA_HOME/larpclient` (`libraries/ assets/ versions/ runtime/ instance/ patches/`) and
 `$XDG_CONFIG_HOME/larpclient` (`launcher.json`, `accounts.json`). The game directory is `instance/`.
 
 Notes:
 - **Log4Shell**: 1.8.9 ships log4j 2.0-beta9. The launcher always applies Mojang's patched logging
   config from the version JSON.
-- **Bundled mod**: `:launcher:processResources` copies `:mod:remapJar` into the jar as
-  `larp/larpclient.jar.bin`. The suffix isn't `.jar` because Shadow would unpack it. It's
-  installed into `instance/mods/` on every launch if the hash changed.
-- **Tiling WMs**: the window has a fixed size so Hyprland/Sway/i3 float it, and it re-asserts
-  its size after mapping because XWayland initial size hints are sometimes ignored.
+- **Bundled mod**: `./gradlew :bundle:rustBundle` writes the mod jar to `launcher-rs/bundle/`;
+  `larp-launch/build.rs` embeds it, and it's installed into `instance/mods/` on every launch if the hash
+  changed. A build without the bundle compiles and tests but refuses to launch.
+- **Hyprland**: the window has a fixed size, so Hyprland floats it, and it is dragged through the
+  compositor (Wayland-safe).
 
 ### Accounts
 
-The launchers support offline (non-premium) profiles only. Microsoft sign-in was removed on 2026-11-23.
+The launcher supports offline (non-premium) profiles only. Microsoft sign-in was removed on 2026-11-23.
 An `accounts.json` entry of another type (a Microsoft account written by an older version) is loaded as
-an offline profile with the same name, and its tokens are dropped. Both launchers do this identically,
-checked by the `legacy-microsoft-accounts*.json` golden files. A `microsoftClientId` key in
+an offline profile with the same name, its tokens are dropped and the file is rewritten at once
+(checked by the `legacy-microsoft-accounts*.json` golden files). A `microsoftClientId` key in
 `launcher.json` is ignored and dropped on the next save.
 
 ## Adding a module
@@ -270,7 +274,8 @@ clicking, ESP through walls, etc). PRs adding them will be rejected.
   profile id (`"Armor Status"` → `armor_status`), so treat them as stable too.
 - Keep `Reference.VERSION` in sync with `version` in `gradle.properties`.
 - Commits: imperative mood, one logical change each (`Add potion effects HUD`).
-- Run `./gradlew build` before pushing. CI runs the same command.
+- Run `./gradlew build` and `cargo test --workspace` (in `launcher-rs/`) before pushing. CI runs both,
+  plus clippy and the end-to-end test.
 - Compiler warnings are errors (`-Xlint:all -Werror`). The few suppressed categories are listed with
   reasons in each `build.gradle.kts`; don't add `@SuppressWarnings` without a comment saying why.
 - Every bug fix comes with a regression test that fails without the fix.
@@ -280,7 +285,9 @@ clicking, ESP through walls, etc). PRs adding them will be rejected.
 
 ## Releasing
 
-1. Bump `version` in `gradle.properties` and `Reference.VERSION`.
-2. `./gradlew clean build`
-3. Tag `vX.Y.Z` and attach `launcher/build/libs/larp-launcher-X.Y.Z.jar` (and optionally
-   `mod/build/libs/larpclient-X.Y.Z.jar`) to a GitHub release.
+1. Bump `version` in `gradle.properties`, `Reference.VERSION` and `launcher-rs/Cargo.toml` (then
+   `cargo update -w`).
+2. Merge to `main` and wait for CI.
+3. Tag `vX.Y.Z` and attach to a GitHub release: the `larp-client-linux-x86_64` artifact of that CI run
+   (the binary the end-to-end test booted the game with), renamed `larp-client-X.Y.Z-linux-x86_64`, and
+   `mod/build/libs/larpclient-X.Y.Z.jar`.

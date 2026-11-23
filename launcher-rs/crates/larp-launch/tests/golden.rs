@@ -18,7 +18,7 @@ fn load(name: &str) -> Value {
 fn launch_command_linux() {
     let files = GameFiles::new("/data/larpclient");
     let vanilla = load("1.8.9.json");
-    let profile = load("forge-install_profile.json");
+    let profile = serde_json::from_str::<Value>(larp_install::FORGE_INSTALL_PROFILE).unwrap();
     let mut classpath: Vec<PathBuf> = load("golden/libraries-linux.json")
         .as_array()
         .unwrap()

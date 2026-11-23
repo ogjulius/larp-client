@@ -25,8 +25,8 @@ Legend: ✅ works · ⚠️ works with known issue (see TECHNICAL_AUDIT.md) · �
 | Detached launch, launcher closes after start | `startDetached` | ✅ | 🦀 | ✅ e2e (`launch_hands_off_and_closes_the_launcher`) |
 | Headless CLI: `--launch`, `--offline`, `--install-only`, `--export-icon` | `Cli` | ✅ | 🦀 (same flags) | ✅ same flags, plus `--page` |
 | Home / Accounts / Settings / Console pages, nav rail, skins, starry backdrop | `ui/*` | ✅ | 🦀 (visual design preserved: palette, Inter font, layout) | ✅ reviewed (`screenshots/`): switches instead of checkboxes, otherwise matching |
-| Fixed-size window that floats on tiling WMs | `LauncherFrame` | ✅ | 🦀 | ✅ verified on Hyprland only; Sway, KDE and GNOME not yet tested |
-| Linux desktop entry + `larp-client` command | `scripts/install-linux.sh` | ✅ | 🦀 (native binary, no JDK 17 needed) | ⏳ Phase 4 (`--export-icon` is ready; `install-linux.sh` still installs the Java launcher) |
+| Fixed-size window that floats on tiling WMs | `LauncherFrame` | ✅ | 🦀 | ✅ Hyprland (the only target) |
+| Linux desktop entry + `larp-client` command | `scripts/install-linux.sh` | ✅ | 🦀 (native binary, no JDK 17 needed) | ✅ 0.3.0: `install-linux.sh` installs the native binary and replaces the old Java launcher |
 
 ## In-game (Forge mod), all ☕
 

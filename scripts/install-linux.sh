@@ -1,54 +1,37 @@
 #!/usr/bin/env bash
 # Install the LARP Client launcher for the current user:
-#   ~/.local/share/larpclient/launcher/larp-launcher.jar
-#   ~/.local/bin/larp-client                       (command line entry point)
+#   ~/.local/bin/larp-client                        (the launcher: a native binary, no Java needed to run it)
 #   ~/.local/share/applications/larp-client.desktop (app menu entry)
-# Usage: scripts/install-linux.sh [path/to/larp-launcher.jar]
+#   ~/.local/share/icons/hicolor/256x256/apps/larp-client.png
+# Usage: scripts/install-linux.sh [path/to/larp-client]
+#   Without an argument it builds the launcher first, which needs JDK 17 and JDK 8 (to build the mod)
+#   and a Rust toolchain.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
-install_dir="$data_home/larpclient/launcher"
 bin_dir="$HOME/.local/bin"
 
-find_java17() {
-    # The launcher needs Java 17+; the game itself runs on Java 8 (found or downloaded automatically).
-    local candidate
-    for candidate in "${LARP_JAVA:-}" /usr/lib/jvm/java-{25,21,17}-openjdk/bin/java /usr/lib/jvm/java-{25,21,17}*/bin/java \
-                     /usr/lib/jvm/default-runtime/bin/java "$(command -v java || true)"; do
-        [[ -n "$candidate" && -x "$candidate" ]] || continue
-        local major
-        major="$("$candidate" -XshowSettings:properties -version 2>&1 | awk -F'= ' '/java.specification.version/ {print $2}')"
-        if [[ "${major%%.*}" =~ ^[0-9]+$ && "${major%%.*}" -ge 17 ]]; then
-            echo "$candidate"
-            return 0
-        fi
-    done
-    return 1
-}
-
-jar="${1:-}"
-if [[ -z "$jar" ]]; then
-    echo ":: Building launcher"
-    JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-17-openjdk}" "$repo_root/gradlew" -p "$repo_root" :launcher:shadowJar -q
-    jar="$(ls "$repo_root"/launcher/build/libs/larp-launcher-*.jar | grep -v thin | head -n1)"
+binary="${1:-}"
+if [[ -z "$binary" ]]; then
+    command -v cargo >/dev/null || {
+        echo "!! Building needs Rust (https://rustup.rs) — or pass a downloaded larp-client binary." >&2
+        exit 1
+    }
+    echo ":: Building the mod and the files the launcher embeds"
+    JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-17-openjdk}" "$repo_root/gradlew" -p "$repo_root" :bundle:rustBundle -q
+    echo ":: Building the launcher"
+    cargo build --release --locked -p larp-cli --manifest-path "$repo_root/launcher-rs/Cargo.toml"
+    binary="$repo_root/launcher-rs/target/release/larp-client"
 fi
+[[ -x "$binary" ]] || { echo "!! Not an executable: $binary" >&2; exit 1; }
 
-java_bin="$(find_java17)" || {
-    echo "!! Java 17 or newer is required to run the launcher." >&2
-    echo "   Arch/CachyOS: sudo pacman -S jdk17-openjdk   Debian/Ubuntu: sudo apt install openjdk-17-jre" >&2
-    exit 1
-}
-
-mkdir -p "$install_dir" "$bin_dir" "$data_home/applications" "$data_home/icons/hicolor/256x256/apps"
-cp "$jar" "$install_dir/larp-launcher.jar"
-"$java_bin" -jar "$install_dir/larp-launcher.jar" --export-icon "$data_home/icons/hicolor/256x256/apps/larp-client.png"
-
-cat > "$bin_dir/larp-client" <<WRAPPER
-#!/usr/bin/env bash
-exec "$java_bin" -Dawt.useSystemAAFontSettings=on -jar "$install_dir/larp-launcher.jar" "\$@"
-WRAPPER
-chmod +x "$bin_dir/larp-client"
+mkdir -p "$bin_dir" "$data_home/applications" "$data_home/icons/hicolor/256x256/apps"
+install -m755 "$binary" "$bin_dir/larp-client.new"
+mv -f "$bin_dir/larp-client.new" "$bin_dir/larp-client" # replaces the old Java wrapper script too
+"$bin_dir/larp-client" --export-icon "$data_home/icons/hicolor/256x256/apps/larp-client.png"
+# The Java launcher (0.2.0 and older) lived here; nothing uses it any more.
+rm -rf "$data_home/larpclient/launcher"
 
 cat > "$data_home/applications/larp-client.desktop" <<DESKTOP
 [Desktop Entry]
@@ -59,7 +42,7 @@ Exec=$bin_dir/larp-client
 Icon=larp-client
 Terminal=false
 Categories=Game;
-StartupWMClass=dev-larpclient-launcher-Main
+StartupWMClass=larp-client
 DESKTOP
 
 command -v update-desktop-database >/dev/null && update-desktop-database "$data_home/applications" || true

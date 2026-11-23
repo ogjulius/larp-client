@@ -1,7 +1,7 @@
 # Rebuild Plan
 
 Status: **Option B chosen** (2026-11-23). Phase 1 done (TECHNICAL_AUDIT.md §7). Phase 2 done. Phase 3
-done (Hyprland only; offline profiles only). Phase 4, the cut-over, is next. See the status notes under each phase below.
+done (Hyprland only; offline profiles only). Phase 4 done: 0.3.0 ships only the Rust launcher. See the status notes under each phase below.
 
 ## 1. The central finding
 
@@ -97,6 +97,7 @@ Each phase ends with its exit criteria green in CI. No phase starts on a red bui
 ### Phase 4: Cut-over
 - Release both launchers side by side for one version, then make the Rust launcher the default. The Java launcher is removed one release later.
 - `install-linux.sh` installs the native binary. A JDK is needed only to build the mod.
+- **Status (2026-11-23)**: done, in one step at the user's request. 0.2.0 shipped both launchers; 0.3.0 ships only the Rust one. The Java launcher is deleted. What the Rust build still needs from Java (the LWJGL `LinuxMouse` patch and the XWayland helper class) moved to the small Gradle module `bundle/`, which produces byte-identical files. `install-linux.sh` installs the native binary and removes the old Java launcher; accounts and settings carry over unchanged.
 
 ### Ongoing: In-game performance (Java mod)
 - Build the repeatable benchmark (fixed world, fixed camera path, Xvfb or real GPU), then evaluate each performance module against it. Keep a module only if it shows a measured improvement.

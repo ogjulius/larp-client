@@ -29,7 +29,7 @@ fn as_golden(libs: &[Library]) -> Value {
 }
 
 fn check(os: &str, os_version: &str) {
-    let profile = load("forge-install_profile.json");
+    let profile = serde_json::from_str::<Value>(larp_install::FORGE_INSTALL_PROFILE).unwrap();
     let libs = resolve(
         &load("1.8.9.json"),
         &profile["versionInfo"],
@@ -69,7 +69,7 @@ fn libraries_osx() {
 
 #[test]
 fn every_downloaded_library_is_verified() {
-    let profile = load("forge-install_profile.json");
+    let profile = serde_json::from_str::<Value>(larp_install::FORGE_INSTALL_PROFILE).unwrap();
     for os in ["linux", "windows", "osx"] {
         let libs = resolve(
             &load("1.8.9.json"),

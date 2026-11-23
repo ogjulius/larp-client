@@ -1,43 +1,34 @@
 # Installing LARP Client
 
+LARP Client is made for **Linux on Hyprland** (x86_64). The launcher is a single native program: no
+Java needed to run it. Minecraft's Java 8 is found on your system or downloaded automatically.
+
 ## Option A: download (fastest)
 
-1. Install **Java 17 or newer** (it runs the launcher; Minecraft's Java 8 is set up automatically).
-   - Arch / CachyOS: `sudo pacman -S jdk17-openjdk`
-   - Debian / Ubuntu: `sudo apt install openjdk-17-jre`
-   - Fedora: `sudo dnf install java-17-openjdk`
-   - Windows / macOS: install [Temurin 17](https://adoptium.net/temurin/releases/?version=17)
-2. Download `larp-launcher-0.2.0.jar` from the [latest release](https://github.com/ogjulius/larp-client/releases/latest).
-3. Run it:
+1. Download `larp-client-0.3.0-linux-x86_64` from the [latest release](https://github.com/ogjulius/larp-client/releases/latest).
+2. Make it executable and run it:
    ```sh
-   java -jar larp-launcher-0.2.0.jar
+   chmod +x larp-client-0.3.0-linux-x86_64
+   ./larp-client-0.3.0-linux-x86_64
    ```
-4. Click **Add account**, type a username, press **Enter**, then click **Launch**.
+   To add it to your app menu and get a `larp-client` command, run
+   `./scripts/install-linux.sh path/to/larp-client-0.3.0-linux-x86_64` from a clone of this repository.
+3. On **Accounts**, type a username and click **Add**, then click **Launch**.
    The first launch downloads Minecraft 1.8.9, Forge and Java 8 (about 300 MB) and then starts the game.
 
-### Preview: native Linux launcher (no Java needed)
+It needs glibc 2.35 or newer (any current Arch, Ubuntu 22.04+, Fedora 36+) and OpenGL.
 
-The new launcher, written in Rust, starts in about half a second and uses less memory. It reads the
-same accounts and settings as the Java launcher, so you can switch between them freely. It is a
-preview: so far it has only been tested on Hyprland. Please report problems on other desktops.
+## Option B: build from source (adds an app-menu entry)
 
 ```sh
-chmod +x larp-client-0.2.0-linux-x86_64
-./larp-client-0.2.0-linux-x86_64
-```
-
-It needs glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36, Arch and newer) and OpenGL.
-
-## Option B: build from source (Linux, adds an app-menu entry)
-
-```sh
-sudo pacman -S --needed git jdk8-openjdk jdk17-openjdk   # or your distro's equivalents
+sudo pacman -S --needed git jdk8-openjdk jdk17-openjdk rust   # JDKs build the mod; Rust builds the launcher
 git clone https://github.com/ogjulius/larp-client
 cd larp-client
 ./scripts/install-linux.sh
 ```
 
-Start **LARP Client** from your app menu or run `larp-client`.
+Start **LARP Client** from your app menu or run `larp-client`. Updating from 0.2.0 or older: the same
+command replaces the old Java launcher, and your accounts and settings carry over.
 
 ## Using it
 
@@ -49,7 +40,7 @@ Start **LARP Client** from your app menu or run `larp-client`.
 | Keys | **C** zoom (scroll to adjust), **Left Alt** freelook. Change them in Controls. |
 | Music | Paste a direct `.mp3`/`.wav` link or an MP3 radio stream, then click the track |
 
-**Mod only:** drop `larpclient-0.2.0.jar` into `.minecraft/mods` of any Forge **1.8.9** install.
+**Mod only:** drop `larpclient-0.3.0.jar` into `.minecraft/mods` of any Forge **1.8.9** install.
 
 ## Accounts
 

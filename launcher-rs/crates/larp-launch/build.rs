@@ -1,6 +1,6 @@
 #![allow(clippy::print_stdout)] // a build script talks to Cargo through stdout
 
-//! Embeds the files produced by `./gradlew :launcher:rustBundle` (see launcher/build.gradle.kts).
+//! Embeds the files produced by `./gradlew :bundle:rustBundle` (see bundle/build.gradle.kts).
 //! Without them the launcher still builds (so `cargo test` works on its own), but launching the game
 //! reports that this build has no bundled mod.
 
@@ -48,7 +48,7 @@ fn main() {
         )
     } else {
         println!(
-            "cargo::warning=no bundle in {} (run ./gradlew :launcher:rustBundle): this build cannot launch the game",
+            "cargo::warning=no bundle in {} (run ./gradlew :bundle:rustBundle): this build cannot launch the game",
             dir.display()
         );
         "pub static BUNDLE: Option<Bundle> = None;\n".to_owned()

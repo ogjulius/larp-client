@@ -8,6 +8,7 @@ use larp_net::Net;
 use serde_json::json;
 use sha1::{Digest, Sha1};
 use std::io::Write;
+use std::path::PathBuf;
 use std::time::Duration;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -102,6 +103,11 @@ async fn fixture() -> Fixture {
         ("install_profile.json", &profile),
         ("forge-universal.jar", b"universal jar"),
     ]);
+    let universal_path = format!(
+        "/forge/net/minecraftforge/forge/{v}/forge-{v}-universal.jar",
+        v = larp_install::FORGE_VERSION
+    );
+    serve(&server, &universal_path, 200, b"universal jar".to_vec()).await;
 
     serve(&server, "/manifest.json", 200, manifest).await;
     serve(&server, "/1.8.9.json", 200, vanilla).await;
@@ -137,6 +143,8 @@ async fn fixture() -> Fixture {
         forge_maven: format!("{base}/forge/"),
         maven_central: format!("{base}/central/"),
         resources: format!("{base}/res/"),
+        forge_profile: String::from_utf8(profile).unwrap(),
+        forge_universal_sha1: sha1(b"universal jar"),
         forge_installer_sha1: installer_sha1,
     };
     Fixture { server, endpoints }
@@ -237,11 +245,52 @@ async fn truncated_asset_is_downloaded_again() {
     assert_eq!(std::fs::read(&asset).unwrap(), b"asset bytes");
 }
 
+fn universal_jar(files: &GameFiles) -> PathBuf {
+    let v = larp_install::FORGE_VERSION;
+    files
+        .libraries
+        .join(format!("net/minecraftforge/forge/{v}/forge-{v}.jar"))
+}
+
+async fn install_with(endpoints: Endpoints, files: &GameFiles) -> Result<larp_install::InstalledGame, InstallError> {
+    Installer::new(Net::new().unwrap().with_retry_base(Duration::ZERO), files.clone())
+        .with_endpoints(endpoints)
+        .install(&|_: &str, _: Option<f64>| {})
+        .await
+}
+
+/// Normal route: the universal jar alone (the profile is built in), the installer is never fetched.
+#[tokio::test]
+async fn forge_comes_from_the_universal_jar_without_the_installer() {
+    let f = fixture().await;
+    let dir = tempfile::tempdir().unwrap();
+    let files = GameFiles::new(dir.path());
+    let mut endpoints = f.endpoints.clone();
+    endpoints.forge_installer_sha1 = "0".repeat(40); // would fail if it were used
+    install_with(endpoints, &files).await.unwrap();
+    assert_eq!(std::fs::read(universal_jar(&files)).unwrap(), b"universal jar");
+    let requests = f.server.received_requests().await.unwrap();
+    assert!(!requests.iter().any(|r| r.url.path().ends_with("-installer.jar")));
+}
+
+/// Forge's server has served one file but not the other: without the universal jar, use the installer.
+#[tokio::test]
+async fn forge_falls_back_to_the_installer() {
+    let f = fixture().await;
+    let dir = tempfile::tempdir().unwrap();
+    let files = GameFiles::new(dir.path());
+    let mut endpoints = f.endpoints.clone();
+    endpoints.forge_universal_sha1 = "0".repeat(40); // the direct download fails verification
+    install_with(endpoints, &files).await.unwrap();
+    assert_eq!(std::fs::read(universal_jar(&files)).unwrap(), b"universal jar");
+}
+
 #[tokio::test]
 async fn wrong_forge_installer_is_rejected() {
     let f = fixture().await;
     let dir = tempfile::tempdir().unwrap();
     let mut endpoints = f.endpoints.clone();
+    endpoints.forge_universal_sha1 = "0".repeat(40);
     endpoints.forge_installer_sha1 = "0".repeat(40);
     let result = Installer::new(
         Net::new().unwrap().with_retry_base(Duration::ZERO),
