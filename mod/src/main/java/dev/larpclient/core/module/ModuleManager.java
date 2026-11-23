@@ -14,6 +14,7 @@ public final class ModuleManager {
     private final EventBus bus;
     private final Map<String, Module> byId = new LinkedHashMap<>();
     private final Map<Class<? extends Module>, Module> byClass = new IdentityHashMap<>();
+    private Runnable changeListener = () -> { };
 
     public ModuleManager(EventBus bus) {
         this.bus = bus;
@@ -52,15 +53,26 @@ public final class ModuleManager {
         return byId.get(id);
     }
 
+    /** Called after a module is toggled outside a menu (hotkey), so the change can be persisted. */
+    public void setChangeListener(Runnable listener) {
+        changeListener = listener == null ? () -> { } : listener;
+    }
+
     /** Toggle every module bound to {@code keyCode}. */
     public void handleKey(int keyCode) {
         if (keyCode <= 0) {
             return;
         }
+        boolean changed = false;
         for (Module module : byId.values()) {
             if (module.getToggleKey().get() == keyCode) {
+                boolean before = module.isEnabled();
                 module.toggle();
+                changed |= module.isEnabled() != before;
             }
+        }
+        if (changed) {
+            changeListener.run();
         }
     }
 
@@ -71,11 +83,17 @@ public final class ModuleManager {
         }
     }
 
-    /** Disable any enabled module that is currently blocked (e.g. after joining a server). */
+    /**
+     * Run on every world join: switch off modules the current server disallows, and switch back on
+     * the ones that were only off because of a previous server's policy.
+     */
     public void enforcePolicies() {
         for (Module module : byId.values()) {
-            if (module.isEnabled() && module.blockedReason() != null) {
-                module.setEnabled(false);
+            boolean blocked = module.blockedReason() != null;
+            if (module.isEnabled() && blocked) {
+                module.suspendByPolicy();
+            } else if (module.isSuspendedByPolicy() && !blocked) {
+                module.setEnabled(true);
             }
         }
     }

@@ -15,7 +15,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -87,15 +86,36 @@ public final class GameLauncher {
                 "guiScale:0", "") );
     }
 
+    /** The game classpath, with LWJGL swapped for the XWayland mouse fix on Linux (see {@link LwjglMousePatch}). */
+    private List<Path> classpath(InstalledGame game) {
+        Path lwjgl = Platform.OS == Platform.Os.LINUX ? LwjglMousePatch.findLwjgl(game.classpath) : null;
+        if (lwjgl == null) {
+            return game.classpath;
+        }
+        try {
+            Path patched = LwjglMousePatch.prepare(lwjgl, files.root.resolve("patches"));
+            List<Path> cp = new ArrayList<>(game.classpath);
+            cp.set(cp.indexOf(lwjgl), patched);
+            return cp;
+        } catch (IOException | RuntimeException e) {
+            System.err.println("[larp] LWJGL mouse patch unavailable, mouse may lag under XWayland: " + e);
+            return game.classpath;
+        }
+    }
+
     public List<String> buildCommand(InstalledGame game, Account account, LauncherSettings settings, Path java) {
+        return buildCommand(game, account, settings, java, classpath(game), Platform.classpathSeparator());
+    }
+
+    /** Pure command construction. Covered by golden files shared with the Rust launcher. */
+    List<String> buildCommand(InstalledGame game, Account account, LauncherSettings settings, Path java,
+                              List<Path> classpath, String separator) {
         List<String> cmd = new ArrayList<>();
         cmd.add(java.toString());
         cmd.add("-Xmx" + settings.memoryMb + "M");
         // Fixed heap size: no resize pauses while playing.
         cmd.add("-Xms" + settings.memoryMb + "M");
-        if (settings.jvmArgs != null && !settings.jvmArgs.isBlank()) {
-            cmd.addAll(Arrays.asList(settings.jvmArgs.trim().split("\\s+")));
-        }
+        cmd.addAll(JvmArgs.split(settings.jvmArgs));
         cmd.add("-Djava.library.path=" + game.nativesDir);
         cmd.add("-Dfml.ignoreInvalidMinecraftCertificates=true");
         cmd.add("-Dfml.ignorePatchDiscrepancies=true");
@@ -108,7 +128,7 @@ public final class GameLauncher {
             cmd.add(game.loggingArgument.replace("${path}", game.loggingConfig.toString()));
         }
         cmd.add("-cp");
-        cmd.add(game.classpath.stream().map(Path::toString).collect(Collectors.joining(Platform.classpathSeparator())));
+        cmd.add(classpath.stream().map(Path::toString).collect(Collectors.joining(separator)));
         cmd.add(game.mainClass);
 
         Map<String, String> vars = new HashMap<>();

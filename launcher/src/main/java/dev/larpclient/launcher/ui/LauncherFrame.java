@@ -88,8 +88,25 @@ public final class LauncherFrame extends JFrame {
                     }
                     ((javax.swing.Timer) ev.getSource()).stop();
                 }).start();
+                reportLoadProblems();
             }
         });
+    }
+
+    /** Tell the user when a config file was unreadable and has been moved aside (it is never silently lost). */
+    private void reportLoadProblems() {
+        List<String> problems = new ArrayList<>();
+        if (settings.loadProblem() != null) {
+            problems.add(settings.loadProblem());
+        }
+        if (accounts.loadProblem() != null) {
+            problems.add(accounts.loadProblem());
+        }
+        if (!problems.isEmpty()) {
+            javax.swing.SwingUtilities.invokeLater(() -> javax.swing.JOptionPane.showMessageDialog(this,
+                    String.join("\n\n", problems) + "\n\nFolder: " + Platform.configDir(),
+                    "LARP Client", javax.swing.JOptionPane.WARNING_MESSAGE));
+        }
     }
 
     void show(String page) {

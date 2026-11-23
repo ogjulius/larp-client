@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Manual runs on any branch: gh workflow run build.yml --ref <branch>
+  workflow_dispatch:
 
 jobs:
   build:
@@ -25,3 +27,71 @@ jobs:
           path: |
             launcher/build/libs/larp-launcher-*.jar
             mod/build/libs/larpclient-*.jar
+
+  rust:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: launcher-rs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: launcher-rs
+      - name: Install GUI build dependencies and a software GPU
+        # egui/winit headers; Mesa's lavapipe renders the UI snapshot tests without a GPU.
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev mesa-vulkan-drivers
+        working-directory: .
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Test
+        run: cargo test --workspace --locked
+      - name: Keep snapshot diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot-diffs
+          path: launcher-rs/crates/*/tests/snapshots/*.diff.png
+
+  # Phase 2 exit criterion: the Rust launcher installs the game and boots it with the mod loaded.
+  rust-e2e:
+    # The oldest supported runner, so the uploaded binary needs only glibc 2.35 (Ubuntu 22.04,
+    # Debian 12, Fedora 36 and newer), and the end-to-end test proves it boots the game there.
+    runs-on: ubuntu-22.04
+    needs: rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: |
+            8
+            17
+      - uses: gradle/actions/setup-gradle@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: launcher-rs
+      - name: Install Xvfb and GUI dependencies
+        # x11-xserver-utils provides xrandr: LWJGL 2 runs it to list display modes and the game
+        # crashes in LinuxDisplay.getAvailableDisplayModes (ArrayIndexOutOfBoundsException: 0) without it.
+        run: sudo apt-get update && sudo apt-get install -y xvfb x11-xserver-utils libxkbcommon-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev mesa-vulkan-drivers
+      - name: Build the bundle
+        run: ./gradlew :launcher:rustBundle --console=plain
+      - name: Build the launcher
+        run: cargo build --release --locked -p larp-cli
+        working-directory: launcher-rs
+      - name: End-to-end
+        # The game must run on Java 8; setup-java leaves JAVA_HOME at the last version (17).
+        run: JAVA_HOME="$JAVA_HOME_8_X64" launcher-rs/scripts/e2e.sh
+      # The binary that just passed the end-to-end test is the one releases ship.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: larp-client-linux-x86_64
+          path: launcher-rs/target/release/larp-client
+          if-no-files-found: error

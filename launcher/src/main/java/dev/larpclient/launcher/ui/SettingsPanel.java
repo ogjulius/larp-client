@@ -36,9 +36,7 @@ public final class SettingsPanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(40, 44, 0, 44));
         add(Components.pageHeader("Settings", "Changes are saved automatically."), BorderLayout.NORTH);
 
-        JPanel body = new JPanel();
-        body.setOpaque(false);
-        body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
+        JPanel body = scrollBody();
 
         // ---- Game
         long totalMb = totalMemoryMb();
@@ -125,6 +123,44 @@ public final class SettingsPanel extends JPanel {
         scroll.getViewport().setOpaque(false);
         scroll.getVerticalScrollBar().setUnitIncrement(18);
         add(scroll, BorderLayout.CENTER);
+    }
+
+    /**
+     * The vertically scrolling page body. It always takes the viewport's width (rows shrink their
+     * hint text instead of pushing controls off the right edge) and only ever scrolls vertically.
+     */
+    static JPanel scrollBody() {
+        JPanel body = new ViewportWidthPanel();
+        body.setOpaque(false);
+        body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
+        return body;
+    }
+
+    private static final class ViewportWidthPanel extends JPanel implements javax.swing.Scrollable {
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(java.awt.Rectangle visible, int orientation, int direction) {
+            return 18;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(java.awt.Rectangle visible, int orientation, int direction) {
+            return orientation == javax.swing.SwingConstants.VERTICAL ? visible.height : visible.width;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return false;
+        }
     }
 
     private static String gb(int mb) {

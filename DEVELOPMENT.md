@@ -151,6 +151,20 @@ resize handling follows. `MixinMinecraft#toggleFullscreen` routes F11 there on L
 instead of `--fullscreen`. `-Dlarp.fullscreenProbe=true` toggles fullscreen by itself and logs sizes.
 This was verified on Hyprland 0.57: the window reports fullscreen at 1920×1080 and the game follows, repeatedly.
 
+### Mouse freeze under XWayland
+
+LWJGL 2's `LinuxMouse` calls `XGetGeometry` (a blocking X round trip) up to three times per
+pointer-motion event. Under XWayland each round trip can take milliseconds. With a 1000 Hz mouse,
+the client thread falls seconds behind and the window looks frozen ("not responding"), windowed or
+fullscreen. Because LWJGL is loaded by the system class loader, a Mixin can't fix this. Instead, the
+launcher's `LwjglMousePatch` uses ASM to redirect those calls to `org.lwjgl.opengl.LarpWindowSizeCache`
+(source set `launcher/src/gamepatch`, compiled for Java 8), which caches the size for 50 ms. The game
+then runs on a patched copy of the LWJGL jar in `<data>/patches/` (a full copy, because LWJGL's packages
+are sealed). The copy's name includes the source jar's SHA-1, so it's rebuilt whenever LWJGL changes. Measured on Hyprland 0.57 with an RTX 2060 and a virtual 1000 Hz mouse: before the patch
+the game froze indefinitely; after it, the menu holds 120 FPS while handling about 925 motion events/s.
+`-Dlarp.inputProbe=true` logs FPS, worst frame time and cursor/camera movement once per second
+(`=world` also opens the first singleplayer world after 5 s, to measure grabbed-mouse input).
+
 ### Performance
 
 - `FastRender`: cancels `Minecraft#checkGLError` (a glGetError pipeline stall, several per
@@ -262,6 +276,12 @@ clicking, ESP through walls, etc). PRs adding them will be rejected.
 - Keep `Reference.VERSION` in sync with `version` in `gradle.properties`.
 - Commits: imperative mood, one logical change each (`Add potion effects HUD`).
 - Run `./gradlew build` before pushing. CI runs the same command.
+- Compiler warnings are errors (`-Xlint:all -Werror`). The few suppressed categories are listed with
+  reasons in each `build.gradle.kts`; don't add `@SuppressWarnings` without a comment saying why.
+- Every bug fix comes with a regression test that fails without the fix.
+- Gradle itself prints a handful of deprecation warnings. They come from the Shadow 8.1.1 and Essential
+  Loom 0.10 plugins, not from our build scripts, and go away with plugin upgrades (Loom is pinned for
+  legacy Forge support).
 
 ## Releasing
 

@@ -79,7 +79,7 @@ public final class Skins {
                         url = "https" + url.substring(4);
                     }
                     if (url != null && url.startsWith("https://textures.minecraft.net/")) {
-                        Http.download(url, cache, null);
+                        Http.download(url, cache, (String) null);
                         Files.setLastModifiedTime(cache, java.nio.file.attribute.FileTime.fromMillis(System.currentTimeMillis()));
                         return ImageIO.read(cache.toFile());
                     }

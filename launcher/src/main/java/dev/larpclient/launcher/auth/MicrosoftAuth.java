@@ -23,13 +23,52 @@ public final class MicrosoftAuth {
     private static final String MC_PROFILE = "https://api.minecraftservices.com/minecraft/profile";
     private static final String SCOPE = "XboxLive.signin offline_access";
 
+    /** The HTTP calls this flow makes; replaced in tests. */
+    interface Transport {
+        String postForm(String url, Map<String, String> form) throws IOException;
+
+        String postJson(String url, String json) throws IOException;
+
+        String get(String url, String bearer) throws IOException;
+    }
+
+    /** Waits between device-code polls; replaced in tests. */
+    interface Sleeper {
+        void sleep(int seconds) throws InterruptedException;
+    }
+
+    private static final Transport HTTP = new Transport() {
+        @Override
+        public String postForm(String url, Map<String, String> form) throws IOException {
+            return Http.postForm(url, form);
+        }
+
+        @Override
+        public String postJson(String url, String json) throws IOException {
+            return Http.postJson(url, json);
+        }
+
+        @Override
+        public String get(String url, String bearer) throws IOException {
+            return Http.get(url, bearer);
+        }
+    };
+
     private final String clientId;
+    private final Transport http;
+    private final Sleeper sleeper;
 
     public MicrosoftAuth(String clientId) {
+        this(clientId, HTTP, seconds -> Thread.sleep(seconds * 1000L));
+    }
+
+    MicrosoftAuth(String clientId, Transport http, Sleeper sleeper) {
         if (clientId == null || clientId.isBlank()) {
             throw new IllegalArgumentException("No Microsoft client ID configured (Settings → Microsoft sign-in)");
         }
         this.clientId = clientId.trim();
+        this.http = http;
+        this.sleeper = sleeper;
     }
 
     /** Shown to the user: open {@code verificationUri} and type {@code userCode}. */
@@ -50,7 +89,10 @@ public final class MicrosoftAuth {
     }
 
     public DeviceCode requestDeviceCode() throws IOException {
-        return new DeviceCode(Json.parse(Http.postForm(DEVICE_CODE, Map.of("client_id", clientId, "scope", SCOPE))));
+        JsonObject json = parse(http.postForm(DEVICE_CODE, Map.of("client_id", clientId, "scope", SCOPE)), "Microsoft");
+        required(json, "device_code", "Microsoft");
+        required(json, "user_code", "Microsoft");
+        return new DeviceCode(json);
     }
 
     /** Polls until the user finishes signing in, then completes the Minecraft login. */
@@ -62,13 +104,13 @@ public final class MicrosoftAuth {
             }
             sleep(interval);
             try {
-                JsonObject token = Json.parse(Http.postForm(TOKEN, Map.of(
+                JsonObject token = parse(http.postForm(TOKEN, Map.of(
                         "grant_type", "urn:ietf:params:oauth:grant-type:device_code",
                         "client_id", clientId,
-                        "device_code", code.deviceCode)));
+                        "device_code", code.deviceCode)), "Microsoft");
                 return completeLogin(token);
             } catch (Http.HttpStatusException e) {
-                String error = e.body == null ? "" : Json.str(Json.parse(e.body), "error", "");
+                String error = oauthError(e.body);
                 if ("authorization_pending".equals(error)) {
                     continue;
                 }
@@ -76,7 +118,7 @@ public final class MicrosoftAuth {
                     interval += 5;
                     continue;
                 }
-                throw new IOException(describe(error), e);
+                throw new IOException(error.isEmpty() ? "Microsoft sign-in failed (HTTP " + e.status + ")" : describe(error), e);
             }
         }
         throw new IOException("The sign-in code expired, please try again");
@@ -84,21 +126,26 @@ public final class MicrosoftAuth {
 
     /** Use the stored refresh token to obtain a fresh Minecraft access token. */
     public void refresh(Account account) throws IOException {
-        JsonObject token = Json.parse(Http.postForm(TOKEN, Map.of(
+        if (account.refreshToken == null || account.refreshToken.isEmpty()) {
+            throw new IOException("This account's sign-in has expired. Remove it and sign in again.");
+        }
+        JsonObject token = parse(http.postForm(TOKEN, Map.of(
                 "grant_type", "refresh_token",
                 "client_id", clientId,
                 "refresh_token", account.refreshToken,
-                "scope", SCOPE)));
+                "scope", SCOPE)), "Microsoft");
         Account fresh = completeLogin(token);
         account.username = fresh.username;
         account.uuid = fresh.uuid;
         account.accessToken = fresh.accessToken;
         account.accessTokenExpiresAt = fresh.accessTokenExpiresAt;
-        account.refreshToken = fresh.refreshToken;
+        if (fresh.refreshToken != null) { // OAuth may omit it: the old one stays valid
+            account.refreshToken = fresh.refreshToken;
+        }
     }
 
     private Account completeLogin(JsonObject msToken) throws IOException {
-        String msAccess = Json.str(msToken, "access_token");
+        String msAccess = required(msToken, "access_token", "Microsoft");
 
         JsonObject xblRequest = new JsonObject();
         JsonObject xblProps = new JsonObject();
@@ -108,9 +155,13 @@ public final class MicrosoftAuth {
         xblRequest.add("Properties", xblProps);
         xblRequest.addProperty("RelyingParty", "http://auth.xboxlive.com");
         xblRequest.addProperty("TokenType", "JWT");
-        JsonObject xbl = Json.parse(Http.postJson(XBL, xblRequest.toString()));
-        String xblToken = Json.str(xbl, "Token");
-        String userHash = Json.str(Json.arr(Json.obj(xbl, "DisplayClaims"), "xui").get(0).getAsJsonObject(), "uhs");
+        JsonObject xbl = parse(http.postJson(XBL, xblRequest.toString()), "Xbox Live");
+        String xblToken = required(xbl, "Token", "Xbox Live");
+        JsonArray xui = Json.arr(Json.obj(xbl, "DisplayClaims"), "xui");
+        String userHash = xui.size() > 0 && xui.get(0).isJsonObject() ? Json.str(xui.get(0).getAsJsonObject(), "uhs") : null;
+        if (userHash == null) {
+            throw new IOException("Unexpected response from Xbox Live: missing user hash");
+        }
 
         JsonObject xstsRequest = new JsonObject();
         JsonObject xstsProps = new JsonObject();
@@ -123,7 +174,7 @@ public final class MicrosoftAuth {
         xstsRequest.addProperty("TokenType", "JWT");
         String xstsToken;
         try {
-            xstsToken = Json.str(Json.parse(Http.postJson(XSTS, xstsRequest.toString())), "Token");
+            xstsToken = required(parse(http.postJson(XSTS, xstsRequest.toString()), "Xbox Live"), "Token", "Xbox Live");
         } catch (Http.HttpStatusException e) {
             throw new IOException(describeXsts(e.body), e);
         }
@@ -132,18 +183,18 @@ public final class MicrosoftAuth {
         loginRequest.addProperty("identityToken", "XBL3.0 x=" + userHash + ";" + xstsToken);
         JsonObject login;
         try {
-            login = Json.parse(Http.postJson(MC_LOGIN, loginRequest.toString()));
+            login = parse(http.postJson(MC_LOGIN, loginRequest.toString()), "Minecraft");
         } catch (Http.HttpStatusException e) {
             if (e.status == 403) {
                 throw new IOException("This Azure app is not approved for Minecraft sign-in yet (see DEVELOPMENT.md)", e);
             }
             throw e;
         }
-        String mcAccess = Json.str(login, "access_token");
+        String mcAccess = required(login, "access_token", "Minecraft");
 
         JsonObject profile;
         try {
-            profile = Json.parse(Http.get(MC_PROFILE, mcAccess));
+            profile = parse(http.get(MC_PROFILE, mcAccess), "Minecraft");
         } catch (Http.HttpStatusException e) {
             if (e.status == 404) {
                 throw new IOException("This Microsoft account does not own Minecraft Java Edition", e);
@@ -152,12 +203,47 @@ public final class MicrosoftAuth {
         }
         Account account = new Account();
         account.type = Account.Type.MICROSOFT;
-        account.username = Json.str(profile, "name");
-        account.uuid = Json.str(profile, "id");
+        account.username = required(profile, "name", "Minecraft");
+        account.uuid = required(profile, "id", "Minecraft");
         account.accessToken = mcAccess;
         account.accessTokenExpiresAt = System.currentTimeMillis() + Json.num(login, "expires_in", 86400) * 1000;
         account.refreshToken = Json.str(msToken, "refresh_token");
         return account;
+    }
+
+    /** Parse a JSON object response, turning anything else (HTML error pages, garbage) into an IOException. */
+    private static JsonObject parse(String body, String service) throws IOException {
+        try {
+            JsonObject json = Json.parse(body);
+            if (json == null) {
+                throw new IOException("Unexpected empty response from " + service);
+            }
+            return json;
+        } catch (RuntimeException e) { // JsonParseException, or a non-object root
+            throw new IOException("Unexpected response from " + service, e);
+        }
+    }
+
+    private static String required(JsonObject json, String key, String service) throws IOException {
+        String value;
+        try {
+            value = Json.str(json, key);
+        } catch (RuntimeException e) {
+            value = null;
+        }
+        if (value == null || value.isEmpty()) {
+            throw new IOException("Unexpected response from " + service + ": missing " + key);
+        }
+        return value;
+    }
+
+    /** The OAuth {@code error} code from an error body, or "" if there is none (e.g. an HTML page). */
+    private static String oauthError(String body) {
+        try {
+            return body == null ? "" : Json.str(Json.parse(body), "error", "");
+        } catch (RuntimeException e) {
+            return "";
+        }
     }
 
     private static String describe(String error) {
@@ -188,9 +274,9 @@ public final class MicrosoftAuth {
         return "Xbox Live sign-in failed" + (code != 0 ? " (" + code + ")" : "");
     }
 
-    private static void sleep(int seconds) throws IOException {
+    private void sleep(int seconds) throws IOException {
         try {
-            Thread.sleep(seconds * 1000L);
+            sleeper.sleep(seconds);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException("Interrupted", e);

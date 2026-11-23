@@ -28,7 +28,7 @@ class MusicTest {
     @Test
     void playlistPersistsAndRemovalKeepsCurrentIndexConsistent(@TempDir Path dir) {
         Path file = dir.resolve("music.json");
-        MusicPlayer player = new MusicPlayer(file);
+        MusicPlayer player = new MusicPlayer(file, null, Runnable::run); // synchronous saves
         assertTrue(player.add("https://e.com/1.mp3", null));
         assertTrue(player.add("https://e.com/2.mp3", "Two"));
         assertFalse(player.add("ftp://e.com/3.mp3", null));
@@ -38,7 +38,7 @@ class MusicTest {
         player.setAutoplay(true);
         player.save();
 
-        MusicPlayer loaded = new MusicPlayer(file);
+        MusicPlayer loaded = new MusicPlayer(file, null, Runnable::run);
         loaded.load();
         assertEquals(2, loaded.getTracks().size());
         assertEquals("Two", loaded.getTracks().get(1).getTitle());

@@ -12,6 +12,7 @@ import org.apache.logging.log4j.Logger;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
 import java.io.IOException;
 import java.io.Reader;
@@ -19,9 +20,12 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -29,7 +33,13 @@ import java.util.concurrent.ThreadLocalRandom;
  * The playlist, volume and shuffle state persist to {@code music.json}.
  * <p>
  * Thread model: all public methods may be called from the render thread; decoding and audio
- * output run on a single daemon worker thread per playing track.
+ * output run on a single daemon worker thread per playing track. Playlist changes are saved on a
+ * background thread ({@link #save()} itself is synchronous, for explicit saves and shutdown).
+ * <p>
+ * End of track: the finished worker advances only if it is still the current worker, checked under
+ * the player lock, so a track the user picks at that moment always wins. A track that fails to open
+ * after an automatic advance is skipped; once every track has failed in a row, playback stops with
+ * an error instead of looping.
  */
 public final class MusicPlayer {
     public enum State { STOPPED, LOADING, PLAYING, PAUSED, ERROR }
@@ -37,9 +47,77 @@ public final class MusicPlayer {
     private static final Logger LOGGER = LogManager.getLogger("LARP Client/Music");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
+    /** Where audio comes from and goes to; replaced in tests. */
+    interface Backend {
+        AudioDecoder open(String url) throws IOException;
+
+        Output output(AudioFormat format) throws LineUnavailableException;
+    }
+
+    /** An audio sink accepting 16-bit PCM in the decoder's format. */
+    interface Output {
+        void start();
+
+        void stop();
+
+        void write(byte[] data, int length);
+
+        void drain();
+
+        void close();
+    }
+
+    private static final Backend JAVA_SOUND = new Backend() {
+        @Override
+        public AudioDecoder open(String url) throws IOException {
+            return AudioDecoder.open(url);
+        }
+
+        @Override
+        public Output output(AudioFormat format) throws LineUnavailableException {
+            SourceDataLine line = AudioSystem.getSourceDataLine(format);
+            line.open(format, (int) format.getSampleRate() * format.getFrameSize() / 4);
+            return new Output() {
+                @Override
+                public void start() {
+                    line.start();
+                }
+
+                @Override
+                public void stop() {
+                    line.stop();
+                }
+
+                @Override
+                public void write(byte[] data, int length) {
+                    line.write(data, 0, length);
+                }
+
+                @Override
+                public void drain() {
+                    line.drain();
+                }
+
+                @Override
+                public void close() {
+                    line.close();
+                }
+            };
+        }
+    };
+
     private final Path file;
+    private final Backend backend;
+    private final Executor saveExecutor;
+    private final Object fileLock = new Object();
     private final List<Track> tracks = new ArrayList<>();
     private final Object pauseLock = new Object();
+    /** Tracks that failed to open in a row during automatic advance; guarded by {@code this}. */
+    private int autoFailures;
+    private long saveSequence;
+    private long writtenSequence;
+    /** Test hook: runs on the worker thread just before it tries to advance to the next track. */
+    volatile Runnable beforeAutoAdvance = () -> { };
 
     private volatile State state = State.STOPPED;
     private volatile float volume = 0.5f;
@@ -50,7 +128,17 @@ public final class MusicPlayer {
     private volatile Worker worker;
 
     public MusicPlayer(Path file) {
+        this(file, JAVA_SOUND, Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "LARP Music save");
+            t.setDaemon(true);
+            return t;
+        }));
+    }
+
+    MusicPlayer(Path file, Backend backend, Executor saveExecutor) {
         this.file = file;
+        this.backend = backend;
+        this.saveExecutor = saveExecutor;
     }
 
     // ------------------------------------------------------------------ playlist
@@ -64,7 +152,7 @@ public final class MusicPlayer {
             return false;
         }
         tracks.add(new Track(url, title));
-        save();
+        saveAsync();
         return true;
     }
 
@@ -79,7 +167,7 @@ public final class MusicPlayer {
             current--;
         }
         tracks.remove(index);
-        save();
+        saveAsync();
     }
 
     public synchronized Track getCurrentTrack() {
@@ -94,17 +182,24 @@ public final class MusicPlayer {
     // ------------------------------------------------------------------ transport
 
     public synchronized void play(int index) {
+        play(index, false);
+    }
+
+    private void play(int index, boolean automatic) {
         if (index < 0 || index >= tracks.size()) {
             return;
+        }
+        if (!automatic) {
+            autoFailures = 0;
         }
         stopWorker();
         current = index;
         error = null;
-        Worker w = new Worker(tracks.get(index));
+        Worker w = new Worker(tracks.get(index), automatic);
         worker = w;
         state = State.LOADING;
         w.start();
-        save();
+        saveAsync();
     }
 
     /** Play/pause toggle; starts the playlist if nothing is loaded. */
@@ -127,6 +222,12 @@ public final class MusicPlayer {
     }
 
     public synchronized void next() {
+        autoFailures = 0;
+        advance();
+    }
+
+    /** Move to the next (or a random) track as part of automatic playback. Caller holds the lock. */
+    private void advance() {
         if (tracks.isEmpty()) {
             return;
         }
@@ -135,9 +236,9 @@ public final class MusicPlayer {
             do {
                 n = ThreadLocalRandom.current().nextInt(tracks.size());
             } while (n == current);
-            play(n);
+            play(n, true);
         } else {
-            play((current + 1) % tracks.size());
+            play((current + 1) % tracks.size(), true);
         }
     }
 
@@ -165,12 +266,13 @@ public final class MusicPlayer {
     }
 
     /** Start playback on launch if autoplay is on. */
-    public void startup() {
+    public synchronized void startup() {
         if (autoplay && !tracks.isEmpty()) {
+            autoFailures = 0;
             if (shuffle) {
-                next();
+                advance();
             } else {
-                play(current >= 0 && current < tracks.size() ? current : 0);
+                play(current >= 0 && current < tracks.size() ? current : 0, true);
             }
         }
     }
@@ -234,11 +336,42 @@ public final class MusicPlayer {
             autoplay = root.has("autoplay") && root.get("autoplay").getAsBoolean();
             current = root.has("current") ? root.get("current").getAsInt() : -1;
         } catch (Exception e) {
-            LOGGER.error("Failed to read {}", file, e);
+            // Never overwrite a playlist we couldn't read: keep it for the user to recover.
+            tracks.clear();
+            current = -1;
+            LOGGER.error("Failed to read {}, moving it to {}.broken", file, file.getFileName(), e);
+            try {
+                Files.move(file, file.resolveSibling(file.getFileName() + ".broken"), StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException moveFailed) {
+                LOGGER.warn("Could not move broken playlist aside", moveFailed);
+            }
         }
     }
 
-    public synchronized void save() {
+    /** Write the playlist now (blocking). */
+    public void save() {
+        long seq;
+        String json;
+        synchronized (this) {
+            seq = ++saveSequence;
+            json = serialize();
+        }
+        write(seq, json);
+    }
+
+    /** Save without blocking the caller (use from the render thread). */
+    public synchronized void saveInBackground() {
+        saveAsync();
+    }
+
+    /** Snapshot under the lock, write on the save executor: no disk I/O on the caller's thread. */
+    private void saveAsync() {
+        long seq = ++saveSequence;
+        String json = serialize();
+        saveExecutor.execute(() -> write(seq, json));
+    }
+
+    private String serialize() {
         JsonObject root = new JsonObject();
         JsonArray list = new JsonArray();
         for (Track t : tracks) {
@@ -252,13 +385,30 @@ public final class MusicPlayer {
         root.addProperty("shuffle", shuffle);
         root.addProperty("autoplay", autoplay);
         root.addProperty("current", current);
-        try {
-            Files.createDirectories(file.toAbsolutePath().getParent());
-            try (Writer writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-                GSON.toJson(root, writer);
+        return GSON.toJson(root);
+    }
+
+    /** Atomic write; a snapshot older than the one on disk is dropped. */
+    private void write(long seq, String json) {
+        synchronized (fileLock) {
+            if (seq <= writtenSequence) {
+                return;
             }
-        } catch (IOException e) {
-            LOGGER.error("Failed to save {}", file, e);
+            try {
+                Files.createDirectories(file.toAbsolutePath().getParent());
+                Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
+                try (Writer writer = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
+                    writer.write(json);
+                }
+                try {
+                    Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                } catch (IOException atomicUnsupported) {
+                    Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
+                }
+                writtenSequence = seq;
+            } catch (IOException e) {
+                LOGGER.error("Failed to save {}", file, e);
+            }
         }
     }
 
@@ -266,25 +416,31 @@ public final class MusicPlayer {
 
     private final class Worker extends Thread {
         private final Track track;
+        private final boolean automatic;
         volatile boolean cancelled;
 
-        Worker(Track track) {
+        Worker(Track track, boolean automatic) {
             super("LARP Music");
             this.track = track;
+            this.automatic = automatic;
             setDaemon(true);
         }
 
         @Override
         public void run() {
             boolean finishedNaturally = false;
-            try (AudioDecoder decoder = AudioDecoder.open(track.getUrl())) {
+            try (AudioDecoder decoder = backend.open(track.getUrl())) {
                 AudioFormat format = decoder.getFormat();
-                SourceDataLine line = AudioSystem.getSourceDataLine(format);
-                line.open(format, (int) format.getSampleRate() * format.getFrameSize() / 4);
+                Output line = backend.output(format);
                 line.start();
                 try {
                     if (!cancelled) {
                         state = MusicPlayer.State.PLAYING;
+                        synchronized (MusicPlayer.this) {
+                            if (worker == this) {
+                                autoFailures = 0;
+                            }
+                        }
                     }
                     short[] samples;
                     byte[] bytes = new byte[0];
@@ -304,7 +460,7 @@ public final class MusicPlayer {
                             bytes[i * 2] = (byte) s;              // little endian
                             bytes[i * 2 + 1] = (byte) (s >> 8);
                         }
-                        line.write(bytes, 0, n * 2);
+                        line.write(bytes, n * 2);
                     }
                     if (!cancelled) {
                         line.drain();
@@ -316,18 +472,37 @@ public final class MusicPlayer {
                 }
             } catch (Exception e) {
                 if (!cancelled) {
-                    LOGGER.warn("Could not play {}: {}", track.getUrl(), e.toString());
-                    error = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
-                    state = MusicPlayer.State.ERROR;
+                    failed(e);
                 }
                 return;
             }
-            if (finishedNaturally && worker == this) {
-                next();
+            if (finishedNaturally) {
+                beforeAutoAdvance.run();
+                synchronized (MusicPlayer.this) {
+                    if (worker == this) { // the user didn't pick something else meanwhile
+                        advance();
+                    }
+                }
             }
         }
 
-        private void waitWhilePaused(SourceDataLine line) {
+        private void failed(Exception e) {
+            LOGGER.warn("Could not play {}: {}", track.getUrl(), e.toString());
+            String message = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            synchronized (MusicPlayer.this) {
+                if (worker != this) {
+                    return;
+                }
+                if (automatic && tracks.size() > 1 && ++autoFailures < tracks.size()) {
+                    advance(); // skip the dead track
+                    return;
+                }
+                error = automatic && tracks.size() > 1 ? "No playable tracks (last error: " + message + ")" : message;
+                state = MusicPlayer.State.ERROR;
+            }
+        }
+
+        private void waitWhilePaused(Output line) {
             if (state != MusicPlayer.State.PAUSED) {
                 return;
             }

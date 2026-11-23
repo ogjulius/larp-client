@@ -68,6 +68,7 @@ public final class LarpClient {
         music.load();
         config = new ConfigManager(dataDir.resolve("profile.json"), modules);
         config.load();
+        modules.setChangeListener(config::saveAsync); // hotkey toggles persist immediately
 
         menuKey = new KeyBinding("Open Menu", Keyboard.KEY_RSHIFT, KEY_CATEGORY);
         ClientRegistry.registerKeyBinding(menuKey);
@@ -98,6 +99,7 @@ public final class LarpClient {
         new dev.larpclient.core.Onboarding(dataDir, events, menuKey, dev.larpclient.modules.utility.Zoom.KEY);
         dev.larpclient.core.dev.ScreenshotTour.installIfRequested();
         dev.larpclient.core.dev.FullscreenProbe.installIfRequested();
+        dev.larpclient.core.dev.InputProbe.installIfRequested();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             config.save();
             music.save();

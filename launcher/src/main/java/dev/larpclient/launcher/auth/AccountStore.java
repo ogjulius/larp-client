@@ -2,13 +2,11 @@ package dev.larpclient.launcher.auth;
 
 import com.google.gson.reflect.TypeToken;
 import dev.larpclient.launcher.util.Json;
-import dev.larpclient.launcher.util.Platform;
+import dev.larpclient.launcher.util.SafeFiles;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,6 +15,7 @@ public final class AccountStore {
     private final Path file;
     private final List<Account> accounts = new ArrayList<>();
     private int selected = -1;
+    private String loadProblem;
 
     private static final class Data {
         List<Account> accounts = new ArrayList<>();
@@ -25,20 +24,34 @@ public final class AccountStore {
 
     public AccountStore(Path file) {
         this.file = file;
-        try {
-            if (Files.isRegularFile(file)) {
+        if (Files.exists(file)) {
+            try {
                 Data data = Json.GSON.fromJson(Files.readString(file), new TypeToken<Data>() { }.getType());
-                if (data != null && data.accounts != null) {
-                    accounts.addAll(data.accounts);
-                    selected = data.selected;
+                if (data == null) {
+                    throw new IOException("file is empty");
                 }
+                if (data.accounts != null) {
+                    for (Account a : data.accounts) {
+                        if (a != null && a.uuid != null && a.username != null && a.type != null) {
+                            accounts.add(a);
+                        }
+                    }
+                }
+                selected = data.selected;
+            } catch (Exception e) {
+                // Never overwrite a file we couldn't read: it may hold refresh tokens the user wants back.
+                loadProblem = SafeFiles.quarantineAfterLoadFailure(file, e);
+                System.err.println("[larp] " + loadProblem);
             }
-        } catch (Exception ignored) {
-            // start empty
         }
-        if (selected >= accounts.size()) {
+        if (selected < 0 || selected >= accounts.size()) {
             selected = accounts.isEmpty() ? -1 : 0;
         }
+    }
+
+    /** A message for the user if the accounts file existed but couldn't be read, otherwise null. */
+    public String loadProblem() {
+        return loadProblem;
     }
 
     public List<Account> all() {
@@ -70,12 +83,6 @@ public final class AccountStore {
         Data data = new Data();
         data.accounts = accounts;
         data.selected = selected;
-        Files.createDirectories(file.getParent());
-        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
-        Files.writeString(tmp, Json.GSON.toJson(data));
-        if (Platform.OS != Platform.Os.WINDOWS) {
-            Files.setPosixFilePermissions(tmp, PosixFilePermissions.fromString("rw-------"));
-        }
-        Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        SafeFiles.writeAtomically(file, Json.GSON.toJson(data), true);
     }
 }
