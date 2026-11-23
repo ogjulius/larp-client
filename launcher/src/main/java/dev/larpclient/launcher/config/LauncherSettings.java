@@ -1,11 +1,11 @@
 package dev.larpclient.launcher.config;
 
 import dev.larpclient.launcher.util.Json;
+import dev.larpclient.launcher.util.SafeFiles;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 
 /** User preferences persisted to {@code launcher.json}. Public fields keep Gson mapping trivial. */
 public final class LauncherSettings {
@@ -35,19 +35,27 @@ public final class LauncherSettings {
     public String microsoftClientId = "";
 
     private transient Path file;
+    private transient String loadProblem;
 
     public static LauncherSettings load(Path file) {
         LauncherSettings settings = null;
-        try {
-            if (Files.isRegularFile(file)) {
+        String problem = null;
+        if (Files.exists(file)) {
+            try {
                 settings = Json.GSON.fromJson(Files.readString(file), LauncherSettings.class);
+                if (settings == null) {
+                    throw new IOException("file is empty");
+                }
+            } catch (Exception e) {
+                settings = null;
+                problem = SafeFiles.quarantineAfterLoadFailure(file, e);
+                System.err.println("[larp] " + problem);
             }
-        } catch (Exception ignored) {
-            // fall back to defaults
         }
         if (settings == null) {
             settings = new LauncherSettings();
         }
+        settings.loadProblem = problem;
         settings.file = file;
         settings.memoryMb = Math.max(1024, Math.min(16384, settings.memoryMb));
         if (settings.jvmArgs == null || settings.jvmArgs.trim().equals(OLD_DEFAULT_JVM_ARGS)) {
@@ -56,10 +64,12 @@ public final class LauncherSettings {
         return settings;
     }
 
+    /** A message for the user if the settings file existed but couldn't be read, otherwise null. */
+    public String loadProblem() {
+        return loadProblem;
+    }
+
     public void save() throws IOException {
-        Files.createDirectories(file.getParent());
-        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
-        Files.writeString(tmp, Json.GSON.toJson(this));
-        Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        SafeFiles.writeAtomically(file, Json.GSON.toJson(this), false);
     }
 }
