@@ -276,6 +276,12 @@ clicking, ESP through walls, etc). PRs adding them will be rejected.
 - Keep `Reference.VERSION` in sync with `version` in `gradle.properties`.
 - Commits: imperative mood, one logical change each (`Add potion effects HUD`).
 - Run `./gradlew build` before pushing. CI runs the same command.
+- Compiler warnings are errors (`-Xlint:all -Werror`). The few suppressed categories are listed with
+  reasons in each `build.gradle.kts`; don't add `@SuppressWarnings` without a comment saying why.
+- Every bug fix comes with a regression test that fails without the fix.
+- Gradle itself prints a handful of deprecation warnings. They come from the Shadow 8.1.1 and Essential
+  Loom 0.10 plugins, not from our build scripts, and go away with plugin upgrades (Loom is pinned for
+  legacy Forge support).
 
 ## Releasing
 

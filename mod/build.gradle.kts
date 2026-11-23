@@ -100,7 +100,10 @@ dependencies {
 // ---------------------------------------------------------------------------
 tasks.withType(JavaCompile::class) {
     options.encoding = "UTF-8"
-    options.compilerArgs.addAll(listOf("-Xlint:unchecked", "-Xlint:deprecation"))
+    // All warnings are errors. Suppressed, because they aren't about our code:
+    //  - classfile:  Loom's remapped Minecraft jar carries Java 8 MethodParameters in Java 6 class files
+    //  - processing: "no processor claimed these annotations" from the Mixin annotation processor run
+    options.compilerArgs.addAll(listOf("-Xlint:all,-classfile,-processing", "-Werror"))
 }
 
 tasks.test {
