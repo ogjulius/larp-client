@@ -9,13 +9,17 @@
 #      with LARP_E2E_SKIP_GUI=1, e.g. when only a launcher binary is available.
 #
 # Needs: a release build with the bundle embedded (./gradlew :launcher:rustBundle, then
-# cargo build --release -p larp-cli), Java 8 in $JAVA_HOME or a standard location (else Mojang's runtime is downloaded), xvfb-run, network.
+# cargo build --release -p larp-cli), Java 8 in $JAVA_HOME or a standard location (else Mojang's runtime is downloaded), xvfb-run,
+# xrandr (LWJGL 2 runs it; the game crashes at startup without it), network.
 # Usage: scripts/e2e.sh [path/to/larp-client]   (never touches your real launcher data)
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")/.." && pwd)
 bin=${1:-$here/target/release/larp-client}
 [[ -x $bin ]] || { echo "e2e: no launcher binary at $bin" >&2; exit 2; }
+for tool in xvfb-run xrandr; do
+    command -v "$tool" >/dev/null || { echo "e2e: $tool is not installed" >&2; exit 2; }
+done
 bin=$(cd "$(dirname "$bin")" && pwd)/$(basename "$bin")
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/larp-e2e.XXXXXX")

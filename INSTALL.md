@@ -47,6 +47,9 @@ Start **LARP Client** from your app menu or run `larp-client`.
 ## Troubleshooting
 
 - **Game won't start:** open the launcher's **Console** page and read the last lines.
+- **Game crashes at startup on Linux with `ArrayIndexOutOfBoundsException` in `LinuxDisplay`:** install
+  `xrandr`, which Minecraft 1.8.9 needs to list display modes (`sudo pacman -S xorg-xrandr`,
+  `sudo apt install x11-xserver-utils`, `sudo dnf install xrandr`).
 - **Window is tiny on a tiling WM (Hyprland/Sway/i3):** press **F11** in game for fullscreen, or enable
   *Start in fullscreen* in launcher Settings.
 - **Files:** game data lives in `~/.local/share/larpclient`, settings in `~/.config/larpclient`.

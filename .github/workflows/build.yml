@@ -76,7 +76,9 @@ jobs:
         with:
           workspaces: launcher-rs
       - name: Install Xvfb and GUI dependencies
-        run: sudo apt-get update && sudo apt-get install -y xvfb libxkbcommon-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev mesa-vulkan-drivers
+        # x11-xserver-utils provides xrandr: LWJGL 2 runs it to list display modes and the game
+        # crashes in LinuxDisplay.getAvailableDisplayModes (ArrayIndexOutOfBoundsException: 0) without it.
+        run: sudo apt-get update && sudo apt-get install -y xvfb x11-xserver-utils libxkbcommon-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev mesa-vulkan-drivers
       - name: Build the bundle
         run: ./gradlew :launcher:rustBundle --console=plain
       - name: Build the launcher
