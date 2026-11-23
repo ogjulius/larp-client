@@ -15,7 +15,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -110,9 +109,7 @@ public final class GameLauncher {
         cmd.add("-Xmx" + settings.memoryMb + "M");
         // Fixed heap size: no resize pauses while playing.
         cmd.add("-Xms" + settings.memoryMb + "M");
-        if (settings.jvmArgs != null && !settings.jvmArgs.isBlank()) {
-            cmd.addAll(Arrays.asList(settings.jvmArgs.trim().split("\\s+")));
-        }
+        cmd.addAll(JvmArgs.split(settings.jvmArgs));
         cmd.add("-Djava.library.path=" + game.nativesDir);
         cmd.add("-Dfml.ignoreInvalidMinecraftCertificates=true");
         cmd.add("-Dfml.ignorePatchDiscrepancies=true");
